@@ -34,61 +34,66 @@
 ## 3. 系统架构
 
 ### 3.1 高层架构图（文本描述）
-- **入口层**：VS Code 命令/菜单激活插件 → 注册右边栏 WebviewPanel（fallback: TreeViewProvider for 左边栏）。
-- **UI 层**：React App 在 Webview 中渲染 sidebar（工具栏 + cell 列表 + 历史浏览器）。
+- **入口层**：VS Code 命令/菜单激活插件 → 注册 WebviewPanel。
+- **UI 层**：React App 渲染 Notebook 界面（Plan Cell, Task Cells）。
 - **业务逻辑层**：
-  - Task Manager：管理 cell 创建/展开/收缩。
-  - AI Service：**Adapter 模式**。并不直接 Fork Roo Code，而是将其核心逻辑（Prompt 构建、LLM 调用流）参考实现或作为子模块引入，自行封装 `AIServiceAdapter`。
-    - *理由*：直接 Fork 维护成本过高，且 Roo Code UI 耦合严重。MVP 阶段提取其 Prompt 策略和 MCP 协议实现即可。
-  - History Service：扫描/解析/保存 .rcnb/.rcnbhistory。
-- **数据层**：本地文件系统（项目目录 .rcbook/）；VS Code workspace API 监听变化。
-- **集成层**：VS Code API（文件打开、git 集成）；LLM API 代理。
+  - **Orchestrator (Core)**: 核心大脑。负责解析用户请求，生成 Plan，创建 Cell，并**自动调度** Agent 执行任务。
+  - **Agent Manager**: 管理 Agent 实例（Architect, Coder, Reviewer）。
+  - **Model Registry**: 管理 LLM Provider (OpenAI, Anthropic, Ollama) 和模型绑定配置。
+  - **History Service**: 管理 .rcnb 文件读写。
+- **数据层**：本地文件系统 (.rcnb)。
+- **外部集成**：MCP Servers (Tools), LLM APIs。
 
-数据流：用户输入 Prompt → AI Service 生成 → UI 更新 cell → 保存到文件系统 → 历史浏览器刷新。
+数据流：用户输入 -> Architect Agent (生成 Plan) -> Orchestrator (解析 Plan -> 创建 Task Cells) -> Coder Agent (执行 Cell 1) -> Reviewer Agent (检查) -> Orchestrator (激活下一个 Cell)。
 
 ### 3.2 模块设计
 - **Sidebar Module**：
-  - 职责：渲染右边栏 UI，包括工具栏（新任务、搜索）、任务 cell 列表、历史树视图。
-  - 关键类：SidebarProvider (extends vscode.WebviewViewProvider)。
-  - Fallback：如果右边栏冲突（e.g., 其他扩展占用），用 TreeView 注册左边栏，点击节点触发 Webview 浮动窗。
-- **Task Cell Module**：
-  - 职责：单个 cell 的渲染与交互（chatbox 用 React-Chatbot-Kit；模式选择下拉；反馈/工具用 Roo Code hooks）。
-  - 结构：每个 cell 是 React 组件，状态：collapsed/expanded；expanded 时全宽，隐藏其他 cell。
-  - 交互：**Diff 策略** - 点击 Apply 按钮，调用 `vscode.commands.executeCommand('vscode.diff', ...)` 打开一个新的 Editor Tab 显示 Diff，而非在 Sidebar 内嵌。
-- **AI Integration Module**：
-  - 职责：实现 AI Loop。
-  - 策略：
-    - 定义 `ILLMProvider` 接口。
-    - 实现 `AnthropicProvider`, `OpenAIProvider`。
-    - 移植 Roo Code 的 `SystemPrompt` 构建逻辑（Context Window 管理）。
-  - 扩展：添加上下文注入（vscode.workspace.fs.readFile 获取项目文件）。
-  - 异步：用 Promise/WebWorker 处理 LLM 调用，缓存输出（localStorage）。
-- **History Storage Module**：
-  - 职责：管理 .rcnb (markdown: # Task1\nChat: ...\nYAML frontmatter for metadata) 和 .rcnbhistory (JSON: dialog.json; Patch: diff.patch)。
-  - **敏感信息处理**：
-    - 在保存前运行 `Sanitizer`，正则匹配 `sk-[a-zA-Z0-9]{20,}` 等常见 Key 格式并替换为 `********`。
-    - 添加 `.gitignore` 到 `.rcbook/` 目录（可选，默认建议用户提交 .rcnb 但忽略 .rcnbhistory 中的大文件）。
-  - API：saveTask(taskData) → 写文件；loadRcnb(filePath) → 解析返回 cell 数据。
-  - 版本化：用 gitpython 计算/存储 diff；监听 vscode.workspace.onDidChangeTextDocument 检测手动修改。
-- **Configuration Module**：
-  - 职责：用户设置（存储路径、LLM key、模型选择）；用 vscode.workspace.getConfiguration。
+  - 职责：渲染 Notebook UI。
+  - 关键组件：`NotebookView`, `CellList`, `PlanCell`, `CodeCell`。
+- **Agent Orchestration Module** (New):
+  - 职责：实现自动编排。
+  - **Plan Engine**:
+    - 输入：用户需求。
+    - 输出：结构化 JSON Plan (Steps: [{ type: 'code', description: '...', agent: 'coder' }])。
+    - 行为：将 Plan 渲染为 `Plan Cell`，用户确认后，explode 为多个 `Task Cell`。
+  - **Workflow Engine**:
+    - 监控 Cell 状态。当 Cell 完成时，根据 Plan 触发下一个 Cell。
+    - 处理 Agent 间的上下文传递 (Context Sharing)。
+- **AI Core Module** (Refactored):
+  - 职责：LLM 通信与 Tool 调用。
+  - **Agent Factory**: 根据配置 (`{ role: 'coder', model: 'deepseek-v3' }`) 实例化 Agent。
+  - **Prompt Builder**: 动态构建 System Prompt，注入 Project Context 和 MCP Tools 定义。
+  - **MCP Client**: 连接本地/远程 MCP Server，暴露工具给 LLM。
+- **Configuration Module**:
+  - 职责：管理 `Agent Profiles`。
+  - 配置项：`agents.architect.model`, `agents.coder.model`, `mcp.servers`。
 
 ## 4. 数据模型与接口
 
 ### 4.1 数据模型
-- **RcnbFile**：{ path: string, tasks: Task[] } // .rcnb 主文件
-- **Task**：{ id: string, title: string, mode: 'Code'|'Architect' etc., chatHistory: Message[], codeDiff: string, timestamp: Date }
-- **Message**：{ role: 'user'|'ai', content: string, type: 'text'|'code'|'diff' }
-- **HistoryEntry**：{ fileName: string, summary: string } // 用于 sidebar 列表
+- **RcnbFile**：{ path: string, cells: Cell[] }
+- **Cell (Union)**: `PlanCell` | `TaskCell`
+- **PlanCell**: 
+  - `type`: 'plan'
+  - `content`: string (User Requirement)
+  - `planData`: { steps: PlanStep[] }
+- **PlanStep**: { id: string, title: string, agent: 'coder'|'reviewer', status: 'pending'|'done' }
+- **TaskCell**: 
+  - `type`: 'task'
+  - `agentType`: 'architect'|'coder'|'reviewer'
+  - `modelConfig`: { provider: string, model: string }
+  - `chatHistory`: Message[]
+  - `codeDiff`: string
+- **AgentProfile**: { role: string, provider: string, model: string, systemPrompt: string }
 
 ### 4.2 关键接口
-- **VS Code API 接口**：
-  - vscode.window.createWebviewPanel('rcbook.sidebar', 'rcbook', vscode.ViewColumn.Beside)
-  - vscode.workspace.fs (读写 .rcnb)
-- **内部 API**：
-  - async generateFromAI(prompt: string, context: ProjectContext): Promise<CodeResponse>
-  - saveToProject(task: Task): void
-  - loadHistory(): HistoryEntry[]
+- **Agent Interface**:
+  - `chat(messages: Message[], tools: Tool[]): Promise<Response>`
+  - `getTools(): Tool[]`
+- **Orchestrator Interface**:
+  - `generatePlan(requirement: string): Promise<Plan>`
+  - `executeStep(step: PlanStep): Promise<void>`
+  - `delegate(fromAgent: Agent, toAgent: Agent, context: any): void`
 
 ## 5. 实现细节
 

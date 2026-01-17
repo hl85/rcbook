@@ -3,9 +3,9 @@
 ## 1. 产品概述
 
 **产品名称**：rcbook  
-**产品定位**：rcbook 是一款开源的 VS Code 扩展插件，专为应用开发者（前后端工程师）设计，提供一种 Notebook 驱动的 AI 编程范式。它基于 Roo Code 的核心 AI 引擎，结合任务导向的 notebook cell 结构，帮助开发者记录和管理 AI 生成代码的过程信息（Prompt、对话历史、思维链、diff 快照），解决传统 AI 工具（如 Cursor、Copilot）中“黑盒”问题。rcbook 以右边栏插件形式存在（fallback 左边栏），历史数据存储在项目目录中，便于版本控制和团队协作。
+**产品定位**：rcbook 是一款开源的 VS Code 扩展插件，专为应用开发者（前后端工程师）设计，提供一种**Notebook 驱动的多 Agent 协作编程范式**。它借鉴了 Roo Code 的 Agent 模式，但完全独立实现，支持**结构化计划生成**、**多 Agent 自动编排**以及**多模型动态绑定**。rcbook 通过 notebook cell 结构管理 AI 协作过程，不仅解决“黑盒”问题，更将开发过程升级为“规划-执行-验收”的自动化流水线。
 
-**产品愿景**：成为应用开发者在 AI 时代的核心工具链补充，让代码生成过程透明、可追溯、可修正，提升代码审查（CR）效率和长期维护性。相比 Roo Code 的纯 sidebar chat，rcbook 强调“过程资产”管理；相比 Jupyter/Marimo，避免数据分析偏向，转而聚焦通用编程任务。
+**产品愿景**：成为应用开发者在 AI 时代的核心 IDE 伴侣，通过**多 Agent 分工（Architect/Coder/Reviewer）**和**结构化计划**，实现复杂任务的自动化处理，同时保留完整的可追溯过程资产。
 
 **版本**：v1.0（MVP）  
 **发布平台**：VS Code Marketplace，开源于 GitHub。  
@@ -87,28 +87,48 @@
     - [ ] Diff 视图左侧为当前文件，右侧为 AI 生成结果。
     - [ ] 包含 "Confirm Apply" 和 "Cancel" 按钮。
 
-#### EPIC-3: 历史记录与持久化 (History & Persistence)
-- **US-3.1 自动保存**
+#### EPIC-4: 计划与编排 (Planning & Orchestration)
+- **US-4.1 结构化计划生成 (Plan Mode)**
   - **作为** 开发者，
-  - **我想要** 我的任务记录自动保存到 `.rcnb` 文件，
-  - **从而** 即使 IDE 崩溃或重启也不会丢失工作进度。
+  - **我想要** 在面对复杂需求时，AI 能先生成一个结构化的执行计划，
+  - **从而** 将大任务拆解为可管理的步骤。
   - **验收标准 (AC)**:
-    - [ ] 每次 AI 回复完成或用户编辑后，自动写入磁盘。
-    - [ ] 数据结构符合 YAML Frontmatter + Markdown 规范。
-    - [ ] 敏感信息（如 API Key）**绝不**保存到 `.rcnb` 文件中。
+    - [ ] 选择 "Architect" 模式输入需求。
+    - [ ] AI 分析后生成一个特殊的 **Plan Cell**。
+    - [ ] Plan Cell 包含一系列待执行的子任务（Sub-tasks）。
+    - [ ] 点击 "Approve Plan"，系统自动根据子任务生成后续的 **Task Cells**（状态为 Pending）。
 
-- **US-3.2 历史回溯**
-  - **作为** 技术负责人，
-  - **我想要** 打开 `.rcnb` 文件查看任务的 Prompt 和 AI 思维链，
-  - **从而** 理解代码是如何生成的。
+- **US-4.2 多 Agent 自动编排**
+  - **作为** 开发者，
+  - **我想要** 系统能根据任务阶段自动切换最合适的 Agent，
+  - **从而** 实现从设计到编码再到测试的全流程自动化，无需手动干预。
   - **验收标准 (AC)**:
-    - [ ] 在 Sidebar 历史列表中点击文件名。
-    - [ ] 加载该文件的所有 Task Cell 到当前视图。
-    - [ ] Cell 显示为只读或可编辑状态（取决于实现，MVP 可编辑）。
+    - [ ] Architect Agent 生成计划后，自动唤起 Coder Agent 执行第一个 Code Cell。
+    - [ ] Coder Agent 完成代码后，自动唤起 Reviewer/Test Agent 进行检查。
+    - [ ] **可视化**：当前活跃的 Agent 在对应 Cell 上有明显标识（如 "Coder is working..."）。
+
+#### EPIC-5: 多模型与 Agent 配置 (Multi-Model & Configuration)
+- **US-5.1 Agent-模型绑定**
+  - **作为** 开发者，
+  - **我想要** 为不同的 Agent 角色配置不同的 LLM 模型，
+  - **从而** 在成本和效果之间取得平衡（例如 Architect 用 Claude 3.5 Sonnet，Coder 用 DeepSeek V3）。
+  - **验收标准 (AC)**:
+    - [ ] 设置界面提供 "Agent Profiles" 配置。
+    - [ ] 可以为 Architect, Coder, Reviewer 分别选择 Provider 和 Model。
+    - [ ] 支持自定义 Agent（如 "SQL Specialist"）并绑定特定模型。
+
+- **US-5.2 外部工具支持 (MCP & Tools)**
+  - **作为** 开发者，
+  - **我想要** Agent 能调用外部工具（如数据库查询、浏览器、API），
+  - **从而** 解决单纯代码生成无法覆盖的问题。
+  - **验收标准 (AC)**:
+    - [ ] 实现 Model Context Protocol (MCP) Client。
+    - [ ] 支持配置 MCP Server（如 Postgres, Brave Search）。
+    - [ ] Agent 在执行过程中能自主决定调用工具，并在 Cell 中显示调用结果。
 
 ### 4.3 核心交互流程图 (State Machine)
-- **Task Cell States**: `Init` -> `Editing` -> `Thinking` -> `Reviewing` (Diff) -> `Completed`
-- **Error States**: `NetworkError`, `ApiKeyMissing`, `FileConflict`
+- **Workflow**: `User Req` -> `Architect (Plan Cell)` -> `Auto-Generate Task Cells` -> `Coder (Exec Cell 1)` -> `Reviewer (Check)` -> `Next Cell...`
+- **Task Cell States**: `Pending` -> `Planning` -> `Executing` -> `Reviewing` -> `Completed` -> `Failed`
 
 ### 4.4 用户界面概述
 - **右边栏面板**：固定宽度，顶部工具栏（新任务、搜索历史）；主体为任务 cell 列表。
