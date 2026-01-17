@@ -186,6 +186,7 @@
 ## 6. 实现注意事项
 
 - **React 组件树**：App > Toolbar > TaskList > TaskCell > SubComponents (Chatbox 等)。
+  - 用自主实现的 `useChatCompletion` hooks 处理流式输出。
 - **Webview 通信**：用 postMessage 与 VS Code 后端交互（e.g., 发送 'applyCode' 命令）。
 - **原型工具**：Figma 或 VS Code mockup 扩展用于可视化测试。
 

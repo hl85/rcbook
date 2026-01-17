@@ -37,14 +37,14 @@
 - **入口层**：VS Code 命令/菜单激活插件 → 注册 WebviewPanel。
 - **UI 层**：React App 渲染 Notebook 界面（Plan Cell, Task Cells）。
 - **业务逻辑层**：
-  - **Orchestrator (Core)**: 核心大脑。负责解析用户请求，生成 Plan，创建 Cell，并**自动调度** Agent 执行任务。
+  - **AI Service (Core)**: 核心大脑。负责解析用户请求，生成 Plan，创建 Cell，并**自动调度** Agent 执行任务。自主实现 Prompt 策略和 LLM 调用。
   - **Agent Manager**: 管理 Agent 实例（Architect, Coder, Reviewer）。
   - **Model Registry**: 管理 LLM Provider (OpenAI, Anthropic, Ollama) 和模型绑定配置。
   - **History Service**: 管理 .rcnb 文件读写。
 - **数据层**：本地文件系统 (.rcnb)。
 - **外部集成**：MCP Servers (Tools), LLM APIs。
 
-数据流：用户输入 -> Architect Agent (生成 Plan) -> Orchestrator (解析 Plan -> 创建 Task Cells) -> Coder Agent (执行 Cell 1) -> Reviewer Agent (检查) -> Orchestrator (激活下一个 Cell)。
+数据流：用户输入 -> Architect Agent (生成 Plan) -> AI Service (解析 Plan -> 创建 Task Cells) -> Coder Agent (执行 Cell 1) -> Reviewer Agent (检查) -> AI Service (激活下一个 Cell)。
 
 ### 3.2 模块设计
 - **Sidebar Module**：
@@ -62,8 +62,8 @@
 - **AI Core Module** (Refactored):
   - 职责：LLM 通信与 Tool 调用。
   - **Agent Factory**: 根据配置 (`{ role: 'coder', model: 'deepseek-v3' }`) 实例化 Agent。
-  - **Prompt Builder**: 动态构建 System Prompt，注入 Project Context 和 MCP Tools 定义。
-  - **MCP Client**: 连接本地/远程 MCP Server，暴露工具给 LLM。
+  - **Prompt Builder**: 动态构建 System Prompt，注入 Project Context 和 MCP Tools 定义。自主维护 Prompt 模板库。
+  - **MCP Client**: 连接本地/远程 MCP Server，暴露工具给 LLM。MVP 阶段优先支持内置工具（文件读写、Terminal），后续支持标准 MCP。
 - **Configuration Module**:
   - 职责：管理 `Agent Profiles`。
   - 配置项：`agents.architect.model`, `agents.coder.model`, `mcp.servers`。
@@ -76,7 +76,19 @@
 - **PlanCell**: 
   - `type`: 'plan'
   - `content`: string (User Requirement)
-  - `planData`: { steps: PlanStep[] }
+  - `planData`: JSON Schema 验证的结构化数据
+    ```typescript
+    interface PlanSchema {
+      goal: string;
+      steps: {
+        id: string;
+        description: string;
+        agent: 'coder' | 'reviewer';
+        files_to_edit?: string[];
+        dependencies?: string[];
+      }[];
+    }
+    ```
 - **PlanStep**: { id: string, title: string, agent: 'coder'|'reviewer', status: 'pending'|'done' }
 - **TaskCell**: 
   - `type`: 'task'
@@ -103,7 +115,7 @@
   3. 新任务：创建空 cell，注入默认上下文。
 - **回放实现**：
   - 修改 cell 输入 → Redux dispatch 更新状态 → 触发 AI 重跑（use cache if unchanged）。
-  - 用 Roo Code 的 reactive hooks 模拟“自动补齐”。
+  - 用自主实现的 reactive hooks 处理状态更新。
 - **性能优化**：
   - 懒加载：历史列表只加载元数据，点击时解析 .rcnb。
   - 缓存：LLM 输出存 .rcnbhistory JSON，过期策略（用户配置）。
