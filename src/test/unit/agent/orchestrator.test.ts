@@ -89,4 +89,44 @@ describe('Orchestrator', () => {
          
          await expect(orchestrator.generatePlan('fail')).rejects.toThrow();
     });
+
+    // --- Added Tests ---
+
+    test('createTaskCellsFromPlan returns empty array if planData is undefined', () => {
+        const planCell: PlanCell = {
+            id: 'plan-empty',
+            type: 'plan',
+            content: 'req',
+            status: 'draft'
+            // planData is missing
+        };
+        const tasks = orchestrator.createTaskCellsFromPlan(planCell);
+        expect(tasks).toEqual([]);
+    });
+
+    test('createTaskCellsFromPlan uses default model if profile not found', () => {
+        const planCell: PlanCell = {
+            id: 'plan-unknown-agent',
+            type: 'plan',
+            content: 'req',
+            status: 'approved',
+            planData: {
+                steps: [
+                    {
+                        id: 'step-x',
+                        title: 'Unknown',
+                        description: 'Desc',
+                        agent: 'unknown-agent' as any, // Force unknown agent
+                        status: 'pending'
+                    }
+                ]
+            }
+        };
+
+        const tasks = orchestrator.createTaskCellsFromPlan(planCell);
+        expect(tasks).toHaveLength(1);
+        // Should fallback to openai/gpt-3.5-turbo as defined in code
+        expect(tasks[0].modelConfig.provider).toBe('openai');
+        expect(tasks[0].modelConfig.model).toBe('gpt-3.5-turbo');
+    });
 });

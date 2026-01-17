@@ -98,14 +98,16 @@ export class Orchestrator {
     }
 
     public completeTask(currentTask: TaskCell, allTasks: TaskCell[]): TaskCell | null {
+        // 0. Validation: Ensure currentTask is in allTasks
+        const currentIndex = allTasks.findIndex(t => t.id === currentTask.id);
+        if (currentIndex === -1) return null;
+
         // 1. Mark current as completed
         currentTask.status = 'completed';
 
         // 2. Find next pending task (assuming sequential order for now)
         // In a complex graph, we would check dependencies here
-        const currentIndex = allTasks.findIndex(t => t.id === currentTask.id);
-        if (currentIndex === -1) return null;
-
+        
         const nextTask = allTasks[currentIndex + 1];
         if (nextTask && nextTask.status === 'pending') {
             nextTask.status = 'running';

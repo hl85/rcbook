@@ -67,5 +67,36 @@ describe('BaseAgent', () => {
     test('should return registered tools', () => {
         const tools = agent.getTools();
         expect(Array.isArray(tools)).toBe(true);
+        expect(tools).toHaveLength(0); // Initially empty
+    });
+
+    // --- Added Tests ---
+
+    test('should register a new tool', () => {
+        const tool: Tool = {
+            name: 'test_tool',
+            description: 'A test tool',
+            inputSchema: { type: 'object' }
+        };
+        agent.registerTool(tool);
+        
+        const tools = agent.getTools();
+        expect(tools).toHaveLength(1);
+        expect(tools[0]).toBe(tool);
+    });
+
+    test('should pass registered tools to LLM provider', async () => {
+        const tool: Tool = { name: 'my_tool', inputSchema: {} };
+        agent.registerTool(tool);
+        
+        const spy = jest.spyOn(mockProvider, 'generateResponse');
+        await agent.chat([{ role: 'user', content: 'hi', timestamp: Date.now() }]);
+        
+        expect(spy).toHaveBeenCalledWith(
+            expect.any(Array),
+            expect.any(String),
+            expect.arrayContaining([tool]),
+            expect.any(Object)
+        );
     });
 });
