@@ -37,7 +37,7 @@ export class BaseAgent implements IAgent {
     }
 
     public async chat(messages: Message[]): Promise<{ response: string, history: Message[] }> {
-        let currentMessages = [...messages];
+        const currentMessages = [...messages];
         let turns = 0;
         const maxTurns = 5;
         let finalResponse = "";

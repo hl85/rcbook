@@ -18,7 +18,11 @@
         "rcbook.ai.provider": {
           "type": "string",
           "default": "openai",
-          "enum": ["openai", "anthropic", "custom"],
+          "enum": [
+            "openai",
+            "anthropic",
+            "custom"
+          ],
           "description": "LLM Provider"
         },
         "rcbook.ai.apiKey": {
@@ -42,18 +46,29 @@
           "description": "Temperature for model response"
         },
         "rcbook.mcp.servers": {
-            "type": "array",
-            "default": [],
-            "description": "List of MCP servers",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "name": { "type": "string" },
-                    "command": { "type": "string" },
-                    "args": { "type": "array", "items": { "type": "string" } },
-                    "env": { "type": "object" }
+          "type": "array",
+          "default": [],
+          "description": "List of MCP servers",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "command": {
+                "type": "string"
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
                 }
+              },
+              "env": {
+                "type": "object"
+              }
             }
+          }
         }
       }
     },
@@ -92,7 +107,7 @@
     "compile-tests": "tsc -p . --outDir out",
     "test": "jest --no-watchman",
     "test:e2e": "node ./out/test/runTest.js",
-    "lint": "eslint src --ext ts,tsx"
+    "lint": "eslint src"
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",
@@ -104,11 +119,11 @@
     "@types/react-dom": "^19.2.3",
     "@types/uuid": "^10.0.0",
     "@types/vscode": "^1.80.0",
-    "@typescript-eslint/eslint-plugin": "^5.59.0",
-    "@typescript-eslint/parser": "^5.59.0",
+    "@typescript-eslint/eslint-plugin": "^8.53.0",
+    "@typescript-eslint/parser": "^8.53.0",
     "@vscode/test-electron": "^2.3.0",
     "css-loader": "^7.1.2",
-    "eslint": "^8.38.0",
+    "eslint": "^9.39.2",
     "glob": "^8.1.0",
     "jest": "^29.5.0",
     "mocha": "^11.7.5",
@@ -116,10 +131,12 @@
     "ts-jest": "^29.1.0",
     "ts-loader": "^9.4.2",
     "typescript": "^5.0.4",
+    "typescript-eslint": "^8.53.0",
     "webpack": "^5.80.0",
     "webpack-cli": "^5.0.1"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "@monaco-editor/react": "^4.7.0",
     "js-yaml": "^4.1.0",
     "react": "^19.2.3",
@@ -129,7 +146,6 @@
     "remark-stringify": "^10.0.3",
     "unified": "^10.1.2",
     "uuid": "^9.0.0",
-    "zod": "^3.22.0",
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "zod": "^3.22.0"
   }
 }

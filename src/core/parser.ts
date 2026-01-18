@@ -11,9 +11,9 @@ export class RcnbParser {
         };
 
         const lines = content.split('\n');
-        let taskLines: string[] = [];
+        const taskLines: string[] = [];
         let inFrontmatter = false;
-        let frontmatterLines: string[] = [];
+        const frontmatterLines: string[] = [];
         let bodyStartIndex = 0;
 
         // 1. Parse Frontmatter
@@ -105,7 +105,7 @@ export class RcnbParser {
         // Extract comments <!-- key: value -->
         const commentRegex = /<!--\s*(\w+):\s*(.+?)\s*-->/g;
         let match;
-        let cleanContent = content;
+        const cleanContent = content;
 
         while ((match = commentRegex.exec(content)) !== null) {
             const key = match[1];

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 import { TaskManager } from '../core/taskManager';
 import { RcnbFile } from '../core/types';
 import { RcnbParser } from '../core/parser';
@@ -312,13 +313,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         }
 
         // 2. 确定保存路径
-        let workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         let uri: vscode.Uri;
 
         if (workspaceFolder) {
             // 检查文件是否存在，避免覆盖
             let counter = 0;
-            let baseName = fileName.replace('.rcnb', '');
+            const baseName = fileName.replace('.rcnb', '');
             while (true) {
                 const tryName = counter === 0 ? fileName : `${baseName}-${counter}.rcnb`;
                 uri = vscode.Uri.joinPath(workspaceFolder.uri, tryName);
@@ -347,7 +348,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         // 我们创建一个临时的 TaskManager 来生成初始结构
         const tempRcnb: RcnbFile = {
             metadata: {
-                id: require('uuid').v4(), // 假设 uuid 库可用，或者暂时用随机字符串
+                id: uuidv4(),
                 title: taskTitle || 'New Notebook',
                 created_at: Date.now()
             },
