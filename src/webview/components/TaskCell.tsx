@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Task } from '../../core/types';
 import { CodeEditor } from './CodeEditor';
 import { ChatArea } from './ChatArea';
@@ -11,7 +11,7 @@ interface TaskCellProps {
 
 export const TaskCell: React.FC<TaskCellProps> = ({ task, isExpanded, onToggle }) => {
 
-    const handleContentChange = (newContent: string) => {
+    const handleContentChange = (_newContent: string) => {
         // ... (unchanged)
     };
 
@@ -109,7 +109,6 @@ export const TaskCell: React.FC<TaskCellProps> = ({ task, isExpanded, onToggle }
                     </div>
 
                     <ChatArea 
-                        taskId={task.id}
                         messages={task.messages || []}
                         onSendMessage={handleSendMessage}
                     />

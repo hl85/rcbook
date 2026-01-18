@@ -51,7 +51,7 @@ export class OpenAIService implements IAIService {
                             if (token) {
                                 callbacks.onToken(token);
                             }
-                        } catch (e) {
+                        } catch (_e) {
                             // console.error('Error parsing stream chunk', e);
                         }
                     }

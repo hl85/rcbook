@@ -60,7 +60,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
-        context: vscode.WebviewViewResolveContext,
+        _context: vscode.WebviewViewResolveContext,
         _token: vscode.CancellationToken,
     ) {
         this._view = webviewView;
@@ -175,10 +175,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     this._updateWebview();
 
                     // Call AI Service
-                    let aiResponse = '';
                     await this._aiService.streamChat(prompt, task.messages || [], {
                         onToken: (token) => {
-                            aiResponse += token;
                             this._view?.webview.postMessage({
                                 type: 'onAIStream',
                                 value: { taskId, token }

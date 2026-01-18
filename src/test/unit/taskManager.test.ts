@@ -1,5 +1,5 @@
 import { TaskManager } from '../../core/taskManager';
-import { RcnbFile, Task } from '../../core/types';
+import { RcnbFile } from '../../core/types';
 
 describe('TaskManager', () => {
     let taskManager: TaskManager;

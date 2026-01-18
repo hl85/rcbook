@@ -2,12 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Message } from '../../core/types';
 
 interface ChatAreaProps {
-    taskId: string;
     messages: Message[];
     onSendMessage: (text: string) => void;
 }
 
-export const ChatArea: React.FC<ChatAreaProps> = ({ taskId, messages, onSendMessage }) => {
+export const ChatArea: React.FC<ChatAreaProps> = ({ messages, onSendMessage }) => {
     const [input, setInput] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
 

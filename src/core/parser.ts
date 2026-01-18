@@ -1,5 +1,5 @@
 import * as yaml from 'js-yaml';
-import { RcnbFile, Task, Message } from './types';
+import { RcnbFile, Task } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
 export class RcnbParser {
@@ -11,17 +11,13 @@ export class RcnbParser {
         };
 
         const lines = content.split('\n');
-        const taskLines: string[] = [];
-        let inFrontmatter = false;
         const frontmatterLines: string[] = [];
         let bodyStartIndex = 0;
 
         // 1. Parse Frontmatter
         if (lines[0]?.trim() === '---') {
-            inFrontmatter = true;
             for (let i = 1; i < lines.length; i++) {
                 if (lines[i].trim() === '---') {
-                    inFrontmatter = false;
                     bodyStartIndex = i + 1;
                     try {
                         file.metadata = yaml.load(frontmatterLines.join('\n')) as Record<string, any> || {};
@@ -35,15 +31,6 @@ export class RcnbParser {
         }
 
         // 2. Parse Tasks
-        const bodyContent = lines.slice(bodyStartIndex).join('\n');
-        // Split by Markdown H1 headers (# Title)
-        // regex looks for # at start of line
-        const taskSplitRegex = /(^|\n)#\s+(.+)/;
-        
-        // Split keeps delimiters, so we need to reconstruct
-        // The simple split might be tricky because we want to capture the title.
-        // Let's iterate manually or use a smarter regex split.
-        
         // Strategy: Find all indices of "^# "
         const sections: { title: string, content: string }[] = [];
         let currentTitle = '';
@@ -76,14 +63,6 @@ export class RcnbParser {
         // Push last section
         if (currentTitle) {
             sections.push({ title: currentTitle, content: currentBuffer.join('\n') });
-        } else if (sections.length === 0 && currentBuffer.length > 0 && Object.keys(file.metadata).length === 0) {
-             // Edge case: No H1 headers, but has content. Treat as single task or just raw?
-             // Test case "should generate default metadata if missing" expects 1 task even if input is "# Just a task"
-             // Wait, input "# Just a task" HAS a H1.
-             // What if input has NO H1? e.g. "Just content".
-             // Let's check the failing test expectation.
-             // Test "should generate default metadata" input was "# Just a task". So it has H1.
-             // So my logic above handles it.
         }
 
         // Convert sections to Tasks
@@ -105,7 +84,6 @@ export class RcnbParser {
         // Extract comments <!-- key: value -->
         const commentRegex = /<!--\s*(\w+):\s*(.+?)\s*-->/g;
         let match;
-        const cleanContent = content;
 
         while ((match = commentRegex.exec(content)) !== null) {
             const key = match[1];

@@ -1,6 +1,4 @@
 import { AgentProfile, Message, ModelConfig } from './types';
-import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types';
-import { z } from 'zod';
 
 // Minimal Tool definition (compatible with MCP)
 export interface Tool {

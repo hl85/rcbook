@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { BaseAgent } from './BaseAgent';
 import { IAgent, ILLMProvider } from './interfaces';
 import { ModelRegistry } from './ModelRegistry';
-import { Cell, PlanCell, PlanStep, TaskCell, AgentRole } from './types';
+import { PlanCell, PlanStep, TaskCell, AgentRole } from './types';
 import { MCPService } from './MCPService';
 
 import { FileSystemTools } from './tools/FileSystemTools';
@@ -54,7 +54,7 @@ export class Orchestrator {
             const rawSteps = JSON.parse(jsonStr);
             
             // Map to strict types and add IDs if missing
-            steps = rawSteps.map((s: any, index: number) => ({
+            steps = rawSteps.map((s: any) => ({
                 id: s.id || `step-${uuidv4()}`,
                 title: s.title,
                 description: s.description,

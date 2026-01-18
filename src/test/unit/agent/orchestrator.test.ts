@@ -1,8 +1,7 @@
 
 import { Orchestrator } from '../../../core/agent/Orchestrator';
-import { IAgent, ILLMProvider } from '../../../core/agent/interfaces';
-import { AgentProfile, PlanCell, TaskCell, Message } from '../../../core/agent/types';
-import { MCPService } from '../../../core/agent/MCPService';
+import { ILLMProvider } from '../../../core/agent/interfaces';
+import { PlanCell, Message } from '../../../core/agent/types';
 
 // vscode mock provided by jest config moduleNameMapper
 
@@ -19,7 +18,7 @@ jest.mock('../../../core/agent/MCPService', () => {
 
 // Mock LLM Provider specifically for Orchestrator tests
 class MockArchitectProvider implements ILLMProvider {
-    async generateResponse(messages: Message[], systemPrompt: string): Promise<string> {
+    async generateResponse(_messages: Message[], _systemPrompt: string): Promise<string> {
         // Return a mock JSON plan
         return JSON.stringify([
             {

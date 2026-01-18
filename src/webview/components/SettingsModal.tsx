@@ -163,7 +163,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
                                     try {
                                         const parsed = JSON.parse(e.target.value);
                                         handleChange('rcbook.mcp.servers', parsed);
-                                    } catch (err) {
+                                    } catch (_err) {
                                         // Allow typing invalid JSON temporarily? 
                                         // For simplicity in this v1, maybe just warn or rely on final save
                                     }

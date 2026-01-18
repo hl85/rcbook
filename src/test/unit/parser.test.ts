@@ -1,5 +1,5 @@
 import { RcnbParser } from '../../core/parser';
-import { RcnbFile, Task } from '../../core/types';
+import { RcnbFile } from '../../core/types';
 
 describe('RcnbParser', () => {
     let parser: RcnbParser;

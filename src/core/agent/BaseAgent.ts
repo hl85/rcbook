@@ -117,7 +117,7 @@ export class BaseAgent implements IAgent {
                     return { name: json.tool, args: json.args };
                 }
             }
-        } catch (e) {
+        } catch (_e) {
             // Not a JSON tool call
         }
         return null;

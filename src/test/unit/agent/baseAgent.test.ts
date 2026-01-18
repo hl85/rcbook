@@ -6,9 +6,9 @@ import { AgentProfile, Message } from '../../../core/agent/types';
 class MockLLMProvider implements ILLMProvider {
     async generateResponse(
         messages: Message[],
-        systemPrompt: string,
-        tools?: Tool[],
-        config?: any
+        _systemPrompt: string,
+        _tools?: Tool[],
+        _config?: any
     ): Promise<string> {
         // Simple mock response based on last message
         const lastMsg = messages[messages.length - 1];

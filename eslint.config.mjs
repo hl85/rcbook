@@ -56,7 +56,14 @@ export default tseslint.config(
         "semi": "off",
         // Disable some recommended rules that might be annoying if they weren't enabled before
         "@typescript-eslint/no-explicit-any": "off",
-        "@typescript-eslint/no-unused-vars": "warn"
+        "@typescript-eslint/no-unused-vars": [
+            "warn",
+            {
+                "argsIgnorePattern": "^_",
+                "varsIgnorePattern": "^_",
+                "caughtErrorsIgnorePattern": "^_"
+            }
+        ]
     }
   },
   {
