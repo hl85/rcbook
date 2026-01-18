@@ -1,13 +1,25 @@
+
 import { Orchestrator } from '../../../core/agent/Orchestrator';
-import { IAgent, ILLMProvider } from '../../../core/agent/interfaces';
-import { AgentProfile, PlanCell, TaskCell, Message } from '../../../core/agent/types';
-import { AIProviderFactory } from '../../../core/ai/AIProviderFactory';
-import { ModelRegistry } from '../../../core/agent/ModelRegistry';
+import { ILLMProvider } from '../../../core/agent/interfaces';
+import { PlanCell, Message } from '../../../core/agent/types';
+
+// vscode mock provided by jest config moduleNameMapper
+
+// Mock MCPService to avoid SDK dependencies during this test
+jest.mock('../../../core/agent/MCPService', () => {
+    return {
+        MCPService: jest.fn().mockImplementation(() => ({
+            getAllTools: jest.fn().mockResolvedValue([]),
+            connectStdio: jest.fn(),
+            callTool: jest.fn()
+        }))
+    };
+});
 
 // Mock LLM Provider specifically for Orchestrator tests
 class MockArchitectProvider implements ILLMProvider {
     id = 'mock-architect';
-    async generateResponse(messages: Message[], systemPrompt: string): Promise<string> {
+    async generateResponse(_messages: Message[], _systemPrompt: string | undefined, _tools: any[], _config: any): Promise<string> {
         // Return a mock JSON plan
         return JSON.stringify([
             {
@@ -34,9 +46,8 @@ describe('Orchestrator', () => {
 
     beforeEach(() => {
         mockArchitectProvider = new MockArchitectProvider();
-        AIProviderFactory.getInstance().registerProvider(mockArchitectProvider);
-        ModelRegistry.getInstance().updateModelConfig('architect', { provider: 'mock-architect' as any, model: 'test' });
-        orchestrator = new Orchestrator();
+        // The mock will be used automatically
+        orchestrator = new Orchestrator(mockArchitectProvider);
     });
 
     test('generatePlan should return a PlanCell with parsed steps', async () => {
@@ -93,5 +104,16 @@ describe('Orchestrator', () => {
          jest.spyOn(mockArchitectProvider, 'generateResponse').mockResolvedValue('Invalid JSON');
          
          await expect(orchestrator.generatePlan('fail')).rejects.toThrow();
+    });
+
+    test('createTaskCellsFromPlan returns empty array if planData is undefined', () => {
+        const planCell: PlanCell = {
+            id: 'plan-empty',
+            type: 'plan',
+            content: 'req',
+            status: 'draft'
+        };
+        const taskCells = orchestrator.createTaskCellsFromPlan(planCell);
+        expect(taskCells).toEqual([]);
     });
 });

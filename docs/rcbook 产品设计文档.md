@@ -36,6 +36,7 @@
 - 通过 notebook-like cell 在 sidebar 中组织任务（每个 cell 包含 chatbox、模式选择、模型反馈、tools、MCP 调用）。
 - 历史数据持久化到项目目录（.rcnb markdown 文件 + .rcnbhistory 隐藏目录），便于 git 和离线访问。
 - 动态 UI：任务展开/收缩，确保 sidebar 不拥挤；集成 Roo Code AI 核心，提供高效生成。
+- **多 Agent 协作**：引入 Architect（架构师）、Coder（编码者）、Reviewer（审查者）角色，实现任务自动流转。
 
 ## 4. 核心功能需求与用户故事
 
@@ -51,9 +52,9 @@
   - **我想要** 在 Sidebar 点击“新任务”按钮创建一个新的空白 Cell，
   - **从而** 开始一个新的编程任务而不干扰之前的上下文。
   - **验收标准 (AC)**:
-    - [ ] 点击 "+" 按钮，列表顶部出现一个新的 Expanded 状态的 Cell。
+    - [x] 点击 "+" 按钮，列表顶部出现一个新的 Expanded 状态的 Cell。
+    - [x] 若无活跃 .rcnb 文件，自动推断文件名或创建默认文件。
     - [ ] 新 Cell 自动聚焦输入框。
-    - [ ] 默认模式为 "Code"。
     - [ ] 系统自动生成唯一的 Task ID。
 
 - **US-1.2 折叠/展开任务**
@@ -61,9 +62,9 @@
   - **我想要** 点击任务标题来折叠或展开 Cell，
   - **从而** 在有限的 Sidebar 空间中聚焦当前工作，隐藏无关细节。
   - **验收标准 (AC)**:
-    - [ ] 点击 Expanded Cell 的标题栏 -> 变为 Collapsed 状态，仅显示标题和状态图标。
-    - [ ] 点击 Collapsed Cell 的标题栏 -> 变为 Expanded 状态。
-    - [ ] **约束**：同一时间只能有一个 Cell 处于 Expanded 状态（自动折叠其他）。
+    - [x] 点击 Expanded Cell 的标题栏 -> 变为 Collapsed 状态，仅显示标题和状态图标。
+    - [x] 点击 Collapsed Cell 的标题栏 -> 变为 Expanded 状态。
+    - [x] **约束**：同一时间只能有一个 Cell 处于 Expanded 状态（自动折叠其他）。
 
 #### EPIC-2: AI 交互与代码生成 (AI Interaction)
 - **US-2.1 AI 代码生成**
@@ -71,11 +72,10 @@
   - **我想要** 输入自然语言 Prompt 并获得 AI 生成的代码和解释，
   - **从而** 解决编程问题。
   - **验收标准 (AC)**:
-    - [ ] 输入 Prompt 按 Enter，Chatbox 显示用户消息。
-    - [ ] AI 状态变为 "Thinking" (流式显示思维链)。
-    - [ ] AI 输出 Markdown 格式的解释和代码块。
+    - [x] 输入 Prompt 按 Enter，Chatbox 显示用户消息。
+    - [x] AI 状态变为 "Thinking" (流式显示思维链)。
+    - [x] AI 输出 Markdown 格式的解释和代码块。
     - [ ] 代码块包含 "Apply" 和 "Copy" 按钮。
-    - [ ] **异常**：若 API 失败，显示红色重试按钮。
 
 - **US-2.2 代码变更预览 (Diff Preview)**
   - **作为** 开发者，
@@ -108,22 +108,24 @@
     - [ ] **可视化**：当前活跃的 Agent 在对应 Cell 上有明显标识（如 "Coder is working..."）。
 
 #### EPIC-5: 多模型与 Agent 配置 (Multi-Model & Configuration)
-- **US-5.1 Agent-模型绑定**
+- **US-5.1 设置与配置管理**
   - **作为** 开发者，
-  - **我想要** 为不同的 Agent 角色配置不同的 LLM 模型，
-  - **从而** 在成本和效果之间取得平衡（例如 Architect 用 Claude 3.5 Sonnet，Coder 用 DeepSeek V3）。
+  - **我想要** 在插件界面直接修改 AI Provider 和 Model 配置，
+  - **从而** 快速适应不同的任务需求或网络环境。
   - **验收标准 (AC)**:
-    - [ ] 设置界面提供 "Agent Profiles" 配置。
-    - [ ] 可以为 Architect, Coder, Reviewer 分别选择 Provider 和 Model。
-    - [ ] 支持自定义 Agent（如 "SQL Specialist"）并绑定特定模型。
+    - [x] Sidebar Header 提供设置齿轮图标。
+    - [x] 点击图标弹出 **Settings Modal**。
+    - [x] 支持配置 LLM (Provider, URL, Key, Model, Temperature)。
+    - [x] 支持配置 MCP Servers (JSON 编辑)。
+    - [x] 配置修改实时同步至 VS Code 全局设置。
 
 - **US-5.2 外部工具支持 (MCP & Tools)**
   - **作为** 开发者，
-  - **我想要** Agent 能调用外部工具（如数据库查询、浏览器、API），
+  - **我想要** Agent 能调用外部工具（如文件读写、数据库查询），
   - **从而** 解决单纯代码生成无法覆盖的问题。
   - **验收标准 (AC)**:
-    - [ ] 实现 Model Context Protocol (MCP) Client。
-    - [ ] 支持配置 MCP Server（如 Postgres, Brave Search）。
+    - [x] 实现 Model Context Protocol (MCP) Client。
+    - [x] 支持内置工具 `FileSystemTools` (read_file, write_file)。
     - [ ] Agent 在执行过程中能自主决定调用工具，并在 Cell 中显示调用结果。
 
 ### 4.3 核心交互流程图 (State Machine)
@@ -131,18 +133,16 @@
 - **Task Cell States**: `Pending` -> `Planning` -> `Executing` -> `Reviewing` -> `Completed` -> `Failed`
 
 ### 4.4 用户界面概述
-- **右边栏面板**：固定宽度，顶部工具栏（新任务、搜索历史）；主体为任务 cell 列表。
+- **右边栏面板**：固定宽度，顶部工具栏（新任务、设置）；主体为任务 cell 列表。
 - **Fallback 左边栏**：树视图显示 .rcnb 文件，点击弹出 sidebar 或浮动窗。
 - **视觉风格**：简洁、现代（VS Code 主题适配）；任务展开时用动画过渡。
 
 ### 4.3 用户旅程
-1. **安装与启动**：用户在 VS Code Marketplace 安装，首次启动向导扫描项目/导入历史。
-2. **日常使用**：
-   - 打开 sidebar，点击“新任务”创建 cell。
-   - 输入 Prompt，AI 生成代码；预览 diff，apply。
-   - 完成任务，插件保存 .rcnb/.rcnbhistory。
-3. **回溯/CR**：在 sidebar 历史列表点击 .rcnb，展开查看过程；修改 cell 重跑。
-4. **协作**：git push 项目，团队查看 .rcnb 文件。
+1. **安装与配置**：安装插件，点击 Header 设置图标配置 LLM Key。
+2. **创建任务**：点击“新任务”，若无活跃文件则自动创建。
+3. **日常使用**：输入 Prompt，选择 Agent 模式（Architect/Coder），查看 AI 生成的 Plan 或 Code。
+4. **回溯/CR**：在 sidebar 历史列表点击 .rcnb，展开查看过程；修改 cell 重跑。
+5. **协作**：git push 项目，团队查看 .rcnb 文件。
 
 ## 5. 非功能需求
 
@@ -151,20 +151,20 @@
 - **兼容性**：VS Code 1.80+；多 OS（Windows/Mac/Linux）。
 - **可访问性**：键盘导航、屏幕阅读器支持。
 - **国际化**：英文优先，后续多语言。
-- **开源策略**：Apache-2.0/MI T，鼓励社区贡献。
+- **开源策略**：Apache-2.0/MIT，鼓励社区贡献。
 
 ## 6. 优先级与路线图
 
 **MVP 功能优先级**：
-- 高：核心任务 cell、AI 交互、历史保存/加载。
-- 中：回放与分支、MCP/tools。
-- 低：多模型切换、自定义配置。
+- 高：核心任务 cell、AI 交互、TDD 框架搭建、Settings 配置。
+- 中：Plan 模式、MCP 集成、多 Agent 编排。
+- 低：多模型动态切换、自定义配置。
 
 **路线图**：
-- **Q1 2026**：MVP 发布，VS Code Marketplace 上线。
-- **Q2**：用户反馈迭代，添加左边栏 fallback。
-- **Q3**：扩展到其他 IDE（Cursor/Zed），开源社区构建。
-- **指标**：安装量 >5k，NPS >70。
+- **Phase 1 (Completed)**: TDD 基础，Sidebar UI，基础 AI 对话，设置模块。
+- **Phase 2 (In Progress)**: Orchestrator 实现，MCP Service 集成，FileSystemTools。
+- **Phase 3**: Plan 模式 UI 渲染，Diff View 实现，E2E 测试完善。
+- **Phase 4**: 发布 v1.0。
 
 ## 7. 风险与缓解
 
@@ -175,4 +175,4 @@
 - **风险**：性能瓶颈（大项目历史）。
   - 缓解：优化懒加载；用户配置 history 清理。
 
-这份产品设计文档基于我们此前讨论，确保与技术/工程视角自洽。接下来，如果你确认，可以继续整理技术设计文档或 UI 草图！
+这份产品设计文档基于我们此前讨论，确保与技术/工程视角自洽。

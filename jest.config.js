@@ -9,5 +9,6 @@ module.exports = {
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^vscode$': '<rootDir>/src/test/unit/mockVscode.ts'
   },
 };

@@ -9,9 +9,9 @@ export function run(): Promise<void> {
 
     console.log('Attempting to require mocha from:', mochaPath);
 
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+     
     const Mocha = require(mochaPath);
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+     
     const glob = require(globPath);
 
 	// Create the mocha test

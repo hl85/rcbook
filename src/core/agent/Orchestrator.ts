@@ -2,21 +2,33 @@ import { v4 as uuidv4 } from 'uuid';
 import { BaseAgent } from './BaseAgent';
 import { IAgent, ILLMProvider } from './interfaces';
 import { ModelRegistry } from './ModelRegistry';
-import { Cell, PlanCell, PlanStep, TaskCell, AgentRole } from './types';
+import { PlanCell, PlanStep, TaskCell, AgentRole } from './types';
+import { MCPService } from './MCPService';
+
+import { FileSystemTools } from './tools/FileSystemTools';
+import { Message } from './types';
 
 export class Orchestrator {
     private registry: ModelRegistry;
     private architectAgent: IAgent;
+    private mcpService: MCPService;
+    private llmProvider: ILLMProvider;
 
-    constructor() {
+    constructor(llmProvider: ILLMProvider, mcpService?: MCPService) {
         this.registry = ModelRegistry.getInstance();
+        this.mcpService = mcpService || new MCPService();
+        this.llmProvider = llmProvider;
         
         // Initialize Architect Agent
         // In a real app, we might inject this or get from a factory
         const architectProfile = this.registry.getProfile('architect');
-        if (!architectProfile) throw new Error('Architect profile not found');
+        if (!architectProfile) { throw new Error('Architect profile not found'); }
         
-        this.architectAgent = new BaseAgent(architectProfile);
+        this.architectAgent = new BaseAgent(architectProfile, llmProvider, this.mcpService);
+    }
+
+    public getMCPService(): MCPService {
+        return this.mcpService;
     }
 
     public async generatePlan(requirement: string): Promise<PlanCell> {
@@ -32,7 +44,7 @@ export class Orchestrator {
         ];
 
         // 2. Call Architect Agent
-        const response = await this.architectAgent.chat(messages);
+        const { response } = await this.architectAgent.chat(messages);
 
         // 3. Parse JSON
         let steps: PlanStep[];
@@ -42,7 +54,7 @@ export class Orchestrator {
             const rawSteps = JSON.parse(jsonStr);
             
             // Map to strict types and add IDs if missing
-            steps = rawSteps.map((s: any, index: number) => ({
+            steps = rawSteps.map((s: any) => ({
                 id: s.id || `step-${uuidv4()}`,
                 title: s.title,
                 description: s.description,
@@ -67,8 +79,37 @@ export class Orchestrator {
         return planCell;
     }
 
+    public async executeTask(task: TaskCell): Promise<void> {
+        const profile = this.registry.getProfile(task.agentType);
+        if (!profile) { throw new Error(`No profile for ${task.agentType}`); }
+
+        // Create agent
+        // TODO: Cache agents?
+        const agent = new BaseAgent(profile, this.llmProvider, this.mcpService); 
+        
+        // Register Standard Tools for Coder
+        if (task.agentType === 'coder') {
+             FileSystemTools.getTools().forEach(tool => {
+                 agent.registerLocalTool(tool, (args) => FileSystemTools.execute(tool.name, args));
+             });
+        }
+
+        // Prepare context
+        // In a real scenario, we might need to summarize previous tasks or pass context
+        const messages: Message[] = [
+             ...task.chatHistory,
+             { role: 'user', content: `Please perform this task: (Step ID: ${task.stepId})\nSee plan details if available.`, timestamp: Date.now() }
+        ];
+
+        // Chat
+        const { history } = await agent.chat(messages);
+        
+        // Update task
+        task.chatHistory = history;
+    }
+
     public createTaskCellsFromPlan(planCell: PlanCell): TaskCell[] {
-        if (!planCell.planData) return [];
+        if (!planCell.planData) { return []; }
 
         return planCell.planData.steps.map(step => {
             const profile = this.registry.getProfile(step.agent);
@@ -98,14 +139,16 @@ export class Orchestrator {
     }
 
     public completeTask(currentTask: TaskCell, allTasks: TaskCell[]): TaskCell | null {
+        // 0. Validation: Ensure currentTask is in allTasks
+        const currentIndex = allTasks.findIndex(t => t.id === currentTask.id);
+        if (currentIndex === -1) { return null; }
+
         // 1. Mark current as completed
         currentTask.status = 'completed';
 
         // 2. Find next pending task (assuming sequential order for now)
         // In a complex graph, we would check dependencies here
-        const currentIndex = allTasks.findIndex(t => t.id === currentTask.id);
-        if (currentIndex === -1) return null;
-
+        
         const nextTask = allTasks[currentIndex + 1];
         if (nextTask && nextTask.status === 'pending') {
             nextTask.status = 'running';

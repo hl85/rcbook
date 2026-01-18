@@ -13,16 +13,14 @@
 
 **假设分辨率**：标准 VS Code 窗口（1440x900），sidebar 宽度 300-400px。
 
-以下草图使用 ASCII art 和文本描述表示（实际实现用 CSS/Flexbox）。每个草图包括布局、关键元素和状态变体。
-
 ## 2. 主要界面组件
 
 - **Sidebar 面板**：右边栏主视图（WebviewPanel），顶部工具栏 + 主体内容。
-- **工具栏**：新任务按钮、搜索框、设置图标。
+- **工具栏**：新任务按钮、搜索框、**设置图标**（Gear Icon）。
 - **任务 Cell**：可展开/收缩的卡片，包含 chatbox、模式选择等子组件。
 - **历史浏览器**：树状列表，显示项目 .rcnb 文件。
-- **Diff 预览**：Monaco-based 侧边 diff 查看器。
-- **浮动元素**：错误提示、确认对话（用 VS Code showInformationMessage）。
+- **Diff 预览**：Monaco-based 侧边 diff 查看器或全屏 Modal。
+- **Settings Modal**：全屏模态框，用于配置 LLM 和 MCP。
 
 ## 3. 详细草图
 
@@ -33,8 +31,8 @@
 ```
 [ VS Code Right Sidebar - Width: 350px ]
 -----------------------------------------
-| Toolbar:                              |
-| [New Task] [Search History] [Settings]|
+| Header:                               |
+| RC Book             [Settings] [New+] |
 -----------------------------------------
 | Current Tasks:                        |
 | + Task 1 (Collapsed)                  |
@@ -97,9 +95,6 @@
 ------------------------
 ```
 
-- 变体：收缩状态只显示标题 + 摘要（e.g., "Status: Completed, Diff: +10 lines"）。
-- 交互：输入 Prompt 后，按 Enter 发送；AI 流式输出用打字机效果。Apply 按钮弹出 diff 预览模态（见下）。
-
 ### 3.3 Diff 预览模态
 - **变更说明**：由于 Sidebar 宽度限制（通常 <400px），在其中显示 Side-by-Side Diff 体验极差。因此，Diff 预览将使用 **VS Code 原生 Diff Editor 标签页** 或 **全屏 Webview 模态框**。
 - **交互流程**：
@@ -108,25 +103,6 @@
   3. VS Code 打开一个新的 Editor Tab，显示标准 Diff 视图。
   4. 同时，Sidebar 中的 Task Cell 进入 "Reviewing" 状态，显示 "Confirm" 和 "Reject" 按钮。
   5. 用户在 Diff Tab 确认无误后，回到 Sidebar 点击 "Confirm"，代码写入磁盘，Diff Tab 关闭。
-
-- ASCII 草图（Sidebar 状态）：
-
-```
-[ Task Cell (Reviewing State) ]
-------------------------
-| Title: Edit Login    |
-------------------------
-| Status: Diffing...   |
-| [Icon: Eye] Viewing  |
-| changes in main area |
-------------------------
-| Actions:             |
-| [Confirm Apply]      |
-| [Reject / Cancel]    |
-------------------------
-```
-
-- 备选方案（全屏模态）：如果必须模态，则覆盖整个 VS Code 窗口 80% 区域，但首选原生 Tab。
 
 ### 3.4 历史浏览器视图
 - 描述：Accordion 风格，下拉展开树列表；每个 .rcnb 文件显示元数据（日期、任务数）。
@@ -146,24 +122,34 @@
 --------------------
 ```
 
-- 变体：左边栏 fallback：用 VS Code Tree View（图标 + 标签），点击弹出 sidebar 或独立 Webview。
-- 交互：点击文件加载到当前任务区（覆盖或追加）；右键菜单：Rename/Delete/Export。
-
-### 3.5 设置与配置视图
-- 描述：点击工具栏 Settings 图标，弹出侧面板或模态，配置存储路径、LLM key 等。
+### 3.5 设置与配置视图 (Settings Modal)
+- 描述：点击工具栏 Settings 图标，弹出全屏模态，背景遮罩。包含多个 Tabs (LLM, MCP)。
 - ASCII 草图：
 
 ```
-[ Settings Modal ]
------------------------
-| Storage Path: .rcbook/ |
-| [Browse]             |
-| LLM Model: Claude    |
-| [Dropdown]           |
-| API Key: [Secure Input]|
-| [Save] [Cancel]      |
------------------------
+[ Settings Modal (Overlay) ]
+-----------------------------------------
+| Header: Settings                  [X] |
+-----------------------------------------
+| Tabs: [ LLM Provider ] [ MCP Servers ]|
+-----------------------------------------
+| Content (LLM Tab):                    |
+| Provider: [Dropdown: OpenAI]          |
+| Base URL: [Input: https://api...]     |
+| API Key:  [Password Input]            |
+| Model:    [Input: gpt-4o]             |
+| Temperature: [Slider: 0.7]            |
+|                                       |
+| Content (MCP Tab):                    |
+| {                                     |
+|   "mcpServers": { ... }               |
+| } [JSON Editor Area]                  |
+-----------------------------------------
+| Footer:                               |
+|              [Cancel] [Save Settings] |
+-----------------------------------------
 ```
+- **交互**：点击 Save 后，配置通过 `saveConfig` 消息发送给 Extension，并实时生效。
 
 ## 4. 交互流程与状态机
 
@@ -171,23 +157,19 @@
   - 过渡：Click title → Expanded；Apply/Save → Collapsed。
 - **流程示例**：
   1. 打开 sidebar：加载默认 new cell (Expanded)。
-  2. 输入 Prompt：AI 生成 → 更新 feedback/code。
-  3. Apply：弹出 diff → 确认 → 保存 .rcnb/.rcnbhistory → 刷新历史浏览器。
-  4. 加载历史：点击 .rcnb → 解析文件 → 渲染 cell 列表。
+  2. 点击 Settings：配置 API Key。
+  3. 输入 Prompt：AI 生成 → 更新 feedback/code。
+  4. Apply：弹出 diff → 确认 → 保存 .rcnb/.rcnbhistory → 刷新历史浏览器。
 - **错误状态**：API 失败显示红色 banner in cell："Retry or check key"。
 
 ## 5. 视觉与主题适配
 
 - **颜色**：继承 VS Code theme（e.g., background: var(--sideBar-background)）。
-- **图标**：用 VS Code codicons（e.g., add for New Task, history for Browser）。
+- **图标**：用 VS Code codicons（e.g., `gear` for Settings, `add` for New Task）。
 - **响应式**：Media queries：宽度 <300px 时，隐藏非必需按钮；垂直滚动。
-- **动画**：CSS transitions for expand/collapse；无障碍：skip animations if prefers-reduced-motion。
 
 ## 6. 实现注意事项
 
-- **React 组件树**：App > Toolbar > TaskList > TaskCell > SubComponents (Chatbox 等)。
-  - 用自主实现的 `useChatCompletion` hooks 处理流式输出。
-- **Webview 通信**：用 postMessage 与 VS Code 后端交互（e.g., 发送 'applyCode' 命令）。
-- **原型工具**：Figma 或 VS Code mockup 扩展用于可视化测试。
-
-这份 UI 草图设计与产品/技术文档对齐，确保用户友好和工程可行。如果需要更详细的 Figma 链接模拟或调整草图，请告知！
+- **React 组件树**：App > Header > TaskList > TaskCell > SettingsModal。
+- **Webview 通信**：双向同步 Config。
+- **CSS 变量**：严格使用 `var(--vscode-*)` 确保主题一致性。

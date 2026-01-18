@@ -6,7 +6,6 @@ import { Message } from './types';
 export class HistoryService {
     private _getHistoryDir(rcnbUri: vscode.Uri): string {
         const dir = path.dirname(rcnbUri.fsPath);
-        const filename = path.basename(rcnbUri.fsPath);
         // Assuming filename is something.rcnb, directory should be .something.rcnbhistory? 
         // Or generic .rcnbhistory folder?
         // TDD said: ".rcnbhistory directory". Let's assume a single hidden directory per project or per file location.
