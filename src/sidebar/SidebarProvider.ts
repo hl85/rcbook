@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import { TaskManager } from '../core/taskManager';
-import { RcnbFile } from '../core/types';
+import { RcnbFile, Task } from '../core/types';
 import { RcnbParser } from '../core/parser';
-import { IAIService } from '../core/ai/types';
-import { MockAIService } from '../core/ai/MockAIService';
-import { OpenAIService } from '../core/ai/OpenAIService';
 import { HistoryService } from '../core/historyService';
+import { BaseAgent } from '../core/agent/BaseAgent';
+import { ModelRegistry } from '../core/agent/ModelRegistry';
+import { AgentRole } from '../core/agent/types';
 
 export class SidebarProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'rcbook.sidebarView';
@@ -13,7 +13,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     private _rcnbFile: RcnbFile = { metadata: {}, tasks: [] };
     private _taskManager: TaskManager = new TaskManager(this._rcnbFile);
     private _parser = new RcnbParser();
-    private _aiService: IAIService = new MockAIService();
     private _historyService = new HistoryService();
 
     constructor(
@@ -25,21 +24,39 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 this._updateFromFile();
             }
         });
+
+        // Initialize AI Configuration
+        this._initAIService();
+        // Listen for configuration changes
+        vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('rcbook.ai')) {
+                this._initAIService();
+            }
+        });
     }
 
     private _initAIService() {
         const config = vscode.workspace.getConfiguration('rcbook.ai');
+        const provider = config.get<string>('provider') || 'openai';
         const apiKey = config.get<string>('apiKey');
-        const model = config.get<string>('model') || 'gpt-3.5-turbo';
-        const baseUrl = config.get<string>('baseUrl') || 'https://api.openai.com/v1';
+        const model = config.get<string>('model');
+        const baseUrl = config.get<string>('baseUrl');
 
-        if (apiKey) {
-            this._aiService = new OpenAIService(apiKey, model, baseUrl);
-            console.log('RC Book: Switched to OpenAIService');
-        } else {
-            this._aiService = new MockAIService();
-            console.log('RC Book: Using MockAIService');
-        }
+        console.log(`RC Book: Initializing AI Service with provider=${provider}, model=${model}`);
+
+        const registry = ModelRegistry.getInstance();
+        ['architect', 'coder', 'reviewer'].forEach(role => {
+            const profile = registry.getProfile(role as any);
+            if (profile) {
+                const newConfig = { ...profile.defaultModel };
+                if (provider) newConfig.provider = provider as any;
+                if (model) newConfig.model = model;
+                if (apiKey) newConfig.apiKey = apiKey;
+                if (baseUrl) newConfig.baseUrl = baseUrl;
+                
+                registry.updateModelConfig(role as any, newConfig);
+            }
+        });
     }
 
     public resolveWebviewView(
@@ -50,7 +67,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         this._view = webviewView;
 
         webviewView.webview.options = {
-            // Allow scripts in the webview
             enableScripts: true,
             localResourceRoots: [
                 this._context.extensionUri
@@ -62,16 +78,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         webviewView.webview.onDidReceiveMessage(async data => {
             switch (data.type) {
                 case 'onInfo': {
-                    if (!data.value) {
-                        return;
-                    }
+                    if (!data.value) return;
                     vscode.window.showInformationMessage(data.value);
                     break;
                 }
                 case 'onError': {
-                    if (!data.value) {
-                        return;
-                    }
+                    if (!data.value) return;
                     vscode.window.showErrorMessage(data.value);
                     break;
                 }
@@ -80,6 +92,16 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     task.content = data.value.content;
                     this._updateWebview();
                     await this._saveToFile();
+                    break;
+                }
+                case 'updateTask': {
+                    // Handle task updates (e.g. mode change)
+                    const { taskId, mode } = data.value;
+                    const task = this._taskManager.getTask(taskId);
+                    if (task) {
+                        task.mode = mode;
+                        await this._saveToFile();
+                    }
                     break;
                 }
                 case 'askAI': {
@@ -95,30 +117,50 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     });
                     this._updateWebview();
 
-                    // Call AI Service
-                    let aiResponse = '';
-                    await this._aiService.streamChat(prompt, task.messages || [], {
-                        onToken: (token) => {
-                            aiResponse += token;
-                            this._view?.webview.postMessage({
-                                type: 'onAIStream',
-                                value: { taskId, token }
-                            });
-                        },
-                        onComplete: (fullText) => {
-                            this._taskManager.addMessage(taskId, {
-                                role: 'assistant',
-                                content: fullText,
-                                timestamp: Date.now()
-                            });
-                            this._updateWebview();
-                            // Save both file content (if any changes) and history
-                            this._saveToFile(taskId);
-                        },
-                        onError: (error) => {
-                            vscode.window.showErrorMessage(`AI Error: ${error.message}`);
-                        }
-                    });
+                    // Determine Agent Role
+                    let role: AgentRole = 'coder';
+                    if (task.mode === 'architect') role = 'architect';
+                    if (task.mode === 'debug') role = 'reviewer';
+
+                    const profile = ModelRegistry.getInstance().getProfile(role);
+                    if (!profile) {
+                        vscode.window.showErrorMessage(`No agent profile found for role ${role}`);
+                        return;
+                    }
+
+                    try {
+                        const agent = new BaseAgent(profile);
+                        
+                        let aiResponse = '';
+                        await agent.stream(task.messages || [], {
+                            onToken: (token) => {
+                                aiResponse += token;
+                                this._view?.webview.postMessage({
+                                    type: 'onAIStream',
+                                    value: { taskId, token }
+                                });
+                            },
+                            onComplete: (fullText) => {
+                                this._taskManager.addMessage(taskId, {
+                                    role: 'assistant',
+                                    content: fullText,
+                                    timestamp: Date.now()
+                                });
+                                this._updateWebview();
+                                this._saveToFile(taskId);
+                            },
+                            onError: (error) => {
+                                console.error(error);
+                                vscode.window.showErrorMessage(`AI Error: ${error.message}`);
+                                this._view?.webview.postMessage({
+                                    type: 'onAIError',
+                                    value: { taskId, error: error.message }
+                                });
+                            }
+                        });
+                    } catch (e) {
+                         vscode.window.showErrorMessage(`Failed to start AI agent: ${e}`);
+                    }
                     break;
                 }
                 case 'openDiff': {
@@ -126,25 +168,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     const task = this._taskManager.getTask(taskId);
                     if (!task) return;
 
-                    // Create a virtual document for the task content
-                    // For a real diff, we usually compare "Previous" vs "Current" or "Current" vs "Proposed".
-                    // Since we don't have version history yet, let's demo a diff against a "Previous Version" 
-                    // (which we will simulate as empty or slightly different for now, or just show the content).
-                    // Actually, a useful Diff for "Apply Code" would be comparing the Task Content against the File content it might replace.
-                    // But here, the requirement is "Diff Preview: Implement Apply Code Diff View".
-                    // This implies there is some "Generated Code" that we want to apply to the "Task Content" or "Project File".
-                    // Since AI generates messages, maybe we want to diff the LAST AI MESSAGE code block against the TASK CONTENT?
-                    // Let's implement that: Find last code block in AI messages -> Diff against Task Content.
-                    
                     let proposedCode = '';
                     const lastAiMsg = task.messages?.filter(m => m.role === 'assistant').pop();
                     if (lastAiMsg) {
-                         // Extract code block
                          const match = lastAiMsg.content.match(/```[\s\S]*?\n([\s\S]*?)\n```/);
                          if (match) {
                              proposedCode = match[1];
                          } else {
-                             proposedCode = lastAiMsg.content; // Fallback
+                             proposedCode = lastAiMsg.content;
                          }
                     }
 
@@ -152,10 +183,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                         vscode.window.showInformationMessage('No AI code found to diff.');
                         return;
                     }
-
-                    // We need to create two URIs.
-                    // 1. Current Task Content (we can write to temp file or use untitled scheme)
-                    // 2. Proposed Code
                     
                     const doc = await vscode.workspace.openTextDocument({ content: task.content, language: 'markdown' });
                     const docProposed = await vscode.workspace.openTextDocument({ content: proposedCode, language: 'markdown' });
@@ -172,11 +199,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     const task = this._taskManager.getTask(taskId);
                     if (!task) return;
 
-                    // Update task content with new code
                     task.content = code;
                     this._updateWebview();
-                    
-                    // Save to file
                     await this._saveToFile(taskId);
                     vscode.window.showInformationMessage('Code applied successfully!');
                     break;
@@ -207,13 +231,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         }
 
         const text = editor.document.getText();
-        if (!text.trim()) return; // Don't parse empty file yet
+        if (!text.trim()) return;
 
         try {
             const file = this._parser.parse(text);
             this._rcnbFile = file;
 
-            // Load history for each task
             await Promise.all(this._rcnbFile.tasks.map(async (task) => {
                 const messages = await this._historyService.loadHistory(editor.document.uri, task.id);
                 task.messages = messages;
@@ -243,7 +266,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             editBuilder.replace(fullRange, newText);
         });
 
-        // Save history if requested
         if (taskIdToSaveHistory) {
             const task = this._taskManager.getTask(taskIdToSaveHistory);
             if (task && task.messages) {
@@ -254,7 +276,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     private _getHtmlForWebview(webview: vscode.Webview) {
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._context.extensionUri, 'out', 'compiled', 'sidebar.js'));
-
         const nonce = getNonce();
 
         return `<!DOCTYPE html>

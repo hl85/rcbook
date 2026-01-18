@@ -1,9 +1,12 @@
 import { Orchestrator } from '../../../core/agent/Orchestrator';
 import { IAgent, ILLMProvider } from '../../../core/agent/interfaces';
 import { AgentProfile, PlanCell, TaskCell, Message } from '../../../core/agent/types';
+import { AIProviderFactory } from '../../../core/ai/AIProviderFactory';
+import { ModelRegistry } from '../../../core/agent/ModelRegistry';
 
 // Mock LLM Provider specifically for Orchestrator tests
 class MockArchitectProvider implements ILLMProvider {
+    id = 'mock-architect';
     async generateResponse(messages: Message[], systemPrompt: string): Promise<string> {
         // Return a mock JSON plan
         return JSON.stringify([
@@ -31,7 +34,9 @@ describe('Orchestrator', () => {
 
     beforeEach(() => {
         mockArchitectProvider = new MockArchitectProvider();
-        orchestrator = new Orchestrator(mockArchitectProvider);
+        AIProviderFactory.getInstance().registerProvider(mockArchitectProvider);
+        ModelRegistry.getInstance().updateModelConfig('architect', { provider: 'mock-architect' as any, model: 'test' });
+        orchestrator = new Orchestrator();
     });
 
     test('generatePlan should return a PlanCell with parsed steps', async () => {

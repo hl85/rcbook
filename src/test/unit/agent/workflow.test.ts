@@ -2,17 +2,12 @@ import { Orchestrator } from '../../../core/agent/Orchestrator';
 import { IAgent, ILLMProvider } from '../../../core/agent/interfaces';
 import { TaskCell, Message } from '../../../core/agent/types';
 
-// Simple Mock
-class MockProvider implements ILLMProvider {
-    async generateResponse() { return 'done'; }
-}
-
 describe('Orchestrator Workflow', () => {
     let orchestrator: Orchestrator;
     let tasks: TaskCell[];
 
     beforeEach(() => {
-        orchestrator = new Orchestrator(new MockProvider());
+        orchestrator = new Orchestrator();
         
         // Setup 2 tasks
         tasks = [

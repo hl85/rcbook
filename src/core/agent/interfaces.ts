@@ -1,25 +1,12 @@
-import { AgentProfile, Message, ModelConfig } from './types';
-import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types';
-import { z } from 'zod';
+import { AgentProfile, Message, Tool } from './types';
+import { ILLMProvider } from '../ai/types';
+import { AIStreamCallbacks } from '../ai/types';
 
-// Minimal Tool definition (compatible with MCP)
-export interface Tool {
-    name: string;
-    description?: string;
-    inputSchema: Record<string, any>;
-}
-
-export interface ILLMProvider {
-    generateResponse(
-        messages: Message[],
-        systemPrompt: string,
-        tools?: Tool[],
-        config?: ModelConfig
-    ): Promise<string>; // Returns raw content for now
-}
+export { ILLMProvider, Tool };
 
 export interface IAgent {
     profile: AgentProfile;
     chat(messages: Message[]): Promise<string>;
+    stream(messages: Message[], callbacks: AIStreamCallbacks): Promise<string>;
     getTools(): Tool[];
 }

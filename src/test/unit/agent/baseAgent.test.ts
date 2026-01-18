@@ -1,9 +1,11 @@
 import { BaseAgent } from '../../../core/agent/BaseAgent';
 import { ILLMProvider, Tool } from '../../../core/agent/interfaces';
 import { AgentProfile, Message } from '../../../core/agent/types';
+import { AIProviderFactory } from '../../../core/ai/AIProviderFactory';
 
 // Mock LLM Provider
 class MockLLMProvider implements ILLMProvider {
+    id = 'mock';
     async generateResponse(
         messages: Message[],
         systemPrompt: string,
@@ -25,14 +27,15 @@ describe('BaseAgent', () => {
 
     beforeEach(() => {
         mockProvider = new MockLLMProvider();
+        AIProviderFactory.getInstance().registerProvider(mockProvider);
         profile = {
             role: 'coder',
             name: 'Test Coder',
             description: 'Test',
-            defaultModel: { provider: 'openai', model: 'gpt-4' },
+            defaultModel: { provider: 'mock' as any, model: 'gpt-4' },
             systemPrompt: 'You are a test coder.'
         };
-        agent = new BaseAgent(profile, mockProvider);
+        agent = new BaseAgent(profile);
     });
 
     test('should initialize with profile', () => {

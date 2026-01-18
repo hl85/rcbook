@@ -1,24 +1,43 @@
-import { IAgent, ILLMProvider, Tool } from './interfaces';
-import { AgentProfile, Message } from './types';
+import { IAgent, Tool } from './interfaces';
+import { AgentProfile, Message, ModelConfig } from './types';
+import { AIProviderFactory } from '../ai/AIProviderFactory';
+import { AIStreamCallbacks } from '../ai/types';
 
 export class BaseAgent implements IAgent {
     public profile: AgentProfile;
-    protected llmProvider: ILLMProvider;
     protected tools: Tool[];
 
-    constructor(profile: AgentProfile, llmProvider: ILLMProvider) {
+    constructor(profile: AgentProfile) {
         this.profile = profile;
-        this.llmProvider = llmProvider;
-        this.tools = []; // Initialize with basic tools if needed
+        this.tools = [];
     }
 
-    public async chat(messages: Message[]): Promise<string> {
-        // Here we would handle context window management, but for MVP we pass all
-        return this.llmProvider.generateResponse(
+    public async chat(messages: Message[], configOverride?: ModelConfig): Promise<string> {
+        const config = configOverride || this.profile.defaultModel;
+        const provider = AIProviderFactory.getInstance().getProvider(config);
+        
+        return provider.generateResponse(
             messages,
             this.profile.systemPrompt,
             this.tools,
-            this.profile.defaultModel
+            config
+        );
+    }
+
+    public async stream(
+        messages: Message[],
+        callbacks: AIStreamCallbacks,
+        configOverride?: ModelConfig
+    ): Promise<string> {
+        const config = configOverride || this.profile.defaultModel;
+        const provider = AIProviderFactory.getInstance().getProvider(config);
+        
+        return provider.generateResponse(
+            messages,
+            this.profile.systemPrompt,
+            this.tools,
+            config,
+            callbacks
         );
     }
 

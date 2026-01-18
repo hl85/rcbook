@@ -34,7 +34,7 @@ export default function App() {
                                     msgs[msgs.length - 1] = { ...lastMsg, content: lastMsg.content + token };
                                 } else {
                                     // Should ideally be handled by full sync, but for stream visual:
-                                    msgs.push({ role: 'assistant', content: token });
+                                    msgs.push({ role: 'assistant', content: token, timestamp: Date.now() });
                                 }
                                 return { ...t, messages: msgs };
                             }

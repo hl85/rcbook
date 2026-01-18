@@ -1,7 +1,7 @@
 export interface Message {
     role: 'user' | 'assistant' | 'system';
     content: string;
-    timestamp?: number;
+    timestamp: number;
 }
 
 export interface Task {

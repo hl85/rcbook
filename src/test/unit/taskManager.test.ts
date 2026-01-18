@@ -47,7 +47,8 @@ describe('TaskManager', () => {
             
             taskManager.addMessage(task.id, {
                 role: 'user',
-                content: 'Hello AI'
+                content: 'Hello AI',
+                timestamp: Date.now()
             });
 
             const updated = taskManager.getTask(task.id);

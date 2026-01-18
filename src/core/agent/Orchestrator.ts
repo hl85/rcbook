@@ -8,7 +8,7 @@ export class Orchestrator {
     private registry: ModelRegistry;
     private architectAgent: IAgent;
 
-    constructor(llmProvider: ILLMProvider) {
+    constructor() {
         this.registry = ModelRegistry.getInstance();
         
         // Initialize Architect Agent
@@ -16,7 +16,7 @@ export class Orchestrator {
         const architectProfile = this.registry.getProfile('architect');
         if (!architectProfile) throw new Error('Architect profile not found');
         
-        this.architectAgent = new BaseAgent(architectProfile, llmProvider);
+        this.architectAgent = new BaseAgent(architectProfile);
     }
 
     public async generatePlan(requirement: string): Promise<PlanCell> {

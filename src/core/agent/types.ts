@@ -41,10 +41,18 @@ export type Cell = PlanCell | TaskCell;
 
 export type AgentRole = 'architect' | 'coder' | 'reviewer';
 
+export interface Tool {
+    name: string;
+    description?: string;
+    inputSchema: Record<string, any>;
+}
+
 export interface ModelConfig {
-    provider: 'openai' | 'anthropic' | 'ollama';
+    provider: 'openai' | 'anthropic' | 'ollama' | 'gemini' | 'deepseek' | 'kimi';
     model: string;
     temperature?: number;
+    apiKey?: string; // Optional override
+    baseUrl?: string; // Optional override
 }
 
 export interface AgentProfile {
