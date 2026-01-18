@@ -20,7 +20,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ taskId, messages, onSendMess
     }, [messages]);
 
     const handleSend = () => {
-        if (!input.trim()) return;
+        if (!input.trim()) { return; }
         onSendMessage(input);
         setInput('');
     };

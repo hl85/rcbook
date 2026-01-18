@@ -381,5 +381,45 @@
             }
         });
     </script>
+    <!-- [SETTINGS MODAL MOCKUP] (Hidden by default, shown for demo) -->
+    <!-- Remove 'hidden' class to view -->
+    <div class="hidden absolute inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-[#252526] w-[400px] border border-[#454545] shadow-2xl rounded-md flex flex-col">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-4 py-3 border-b border-[#454545]">
+                <h3 class="text-sm font-bold text-white">Settings</h3>
+                <button class="text-gray-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <!-- Tabs -->
+            <div class="flex border-b border-[#454545] px-4 pt-2 gap-4 text-xs">
+                <div class="pb-2 border-b-2 border-[#0e639c] text-white cursor-pointer font-bold">LLM Provider</div>
+                <div class="pb-2 border-b-2 border-transparent text-gray-400 hover:text-white cursor-pointer">MCP Servers</div>
+            </div>
+            <!-- Content -->
+            <div class="p-4 space-y-4">
+                <div class="space-y-1">
+                    <label class="block text-xs text-gray-400">Provider</label>
+                    <select class="w-full bg-[#3c3c3c] border border-[#3c3c3c] rounded px-2 py-1.5 text-sm text-[#cccccc] focus:border-[#0e639c] outline-none">
+                        <option>OpenAI</option>
+                        <option>Anthropic</option>
+                    </select>
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs text-gray-400">API Key</label>
+                    <input type="password" value="sk-..." class="w-full bg-[#3c3c3c] border border-[#3c3c3c] rounded px-2 py-1.5 text-sm text-[#cccccc] focus:border-[#0e639c] outline-none">
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs text-gray-400">Model</label>
+                    <input type="text" value="gpt-4o" class="w-full bg-[#3c3c3c] border border-[#3c3c3c] rounded px-2 py-1.5 text-sm text-[#cccccc] focus:border-[#0e639c] outline-none">
+                </div>
+            </div>
+            <!-- Footer -->
+            <div class="flex justify-end gap-2 p-4 border-t border-[#454545] bg-[#2d2d2d]">
+                <button class="px-3 py-1.5 text-xs text-white hover:bg-[#3c3c3c] rounded border border-[#454545]">Cancel</button>
+                <button class="px-3 py-1.5 text-xs text-white bg-[#0e639c] hover:bg-[#1177bb] rounded">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>

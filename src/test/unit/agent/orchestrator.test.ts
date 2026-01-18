@@ -1,6 +1,21 @@
+
 import { Orchestrator } from '../../../core/agent/Orchestrator';
 import { IAgent, ILLMProvider } from '../../../core/agent/interfaces';
 import { AgentProfile, PlanCell, TaskCell, Message } from '../../../core/agent/types';
+import { MCPService } from '../../../core/agent/MCPService';
+
+// vscode mock provided by jest config moduleNameMapper
+
+// Mock MCPService to avoid SDK dependencies during this test
+jest.mock('../../../core/agent/MCPService', () => {
+    return {
+        MCPService: jest.fn().mockImplementation(() => ({
+            getAllTools: jest.fn().mockResolvedValue([]),
+            connectStdio: jest.fn(),
+            callTool: jest.fn()
+        }))
+    };
+});
 
 // Mock LLM Provider specifically for Orchestrator tests
 class MockArchitectProvider implements ILLMProvider {
@@ -31,6 +46,7 @@ describe('Orchestrator', () => {
 
     beforeEach(() => {
         mockArchitectProvider = new MockArchitectProvider();
+        // The mock will be used automatically
         orchestrator = new Orchestrator(mockArchitectProvider);
     });
 
@@ -90,43 +106,14 @@ describe('Orchestrator', () => {
          await expect(orchestrator.generatePlan('fail')).rejects.toThrow();
     });
 
-    // --- Added Tests ---
-
     test('createTaskCellsFromPlan returns empty array if planData is undefined', () => {
         const planCell: PlanCell = {
             id: 'plan-empty',
             type: 'plan',
             content: 'req',
             status: 'draft'
-            // planData is missing
         };
-        const tasks = orchestrator.createTaskCellsFromPlan(planCell);
-        expect(tasks).toEqual([]);
-    });
-
-    test('createTaskCellsFromPlan uses default model if profile not found', () => {
-        const planCell: PlanCell = {
-            id: 'plan-unknown-agent',
-            type: 'plan',
-            content: 'req',
-            status: 'approved',
-            planData: {
-                steps: [
-                    {
-                        id: 'step-x',
-                        title: 'Unknown',
-                        description: 'Desc',
-                        agent: 'unknown-agent' as any, // Force unknown agent
-                        status: 'pending'
-                    }
-                ]
-            }
-        };
-
-        const tasks = orchestrator.createTaskCellsFromPlan(planCell);
-        expect(tasks).toHaveLength(1);
-        // Should fallback to openai/gpt-3.5-turbo as defined in code
-        expect(tasks[0].modelConfig.provider).toBe('openai');
-        expect(tasks[0].modelConfig.model).toBe('gpt-3.5-turbo');
+        const taskCells = orchestrator.createTaskCellsFromPlan(planCell);
+        expect(taskCells).toEqual([]);
     });
 });

@@ -7,6 +7,7 @@ export interface Tool {
     name: string;
     description?: string;
     inputSchema: Record<string, any>;
+    serverId?: string; // Optional: ID of the MCP server providing this tool
 }
 
 export interface ILLMProvider {
@@ -15,11 +16,11 @@ export interface ILLMProvider {
         systemPrompt: string,
         tools?: Tool[],
         config?: ModelConfig
-    ): Promise<string>; // Returns raw content for now
+    ): Promise<string>; // Returns raw content or tool call JSON
 }
 
 export interface IAgent {
     profile: AgentProfile;
-    chat(messages: Message[]): Promise<string>;
+    chat(messages: Message[]): Promise<{ response: string, history: Message[] }>;
     getTools(): Tool[];
 }

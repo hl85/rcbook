@@ -6,7 +6,7 @@ module.exports = {
     path: path.resolve(__dirname, 'out/compiled'),
     filename: 'sidebar.js',
   },
-  devtool: 'eval-source-map',
+  devtool: 'source-map',
   resolve: {
     extensions: ['.js', '.ts', '.tsx', '.json'],
   },

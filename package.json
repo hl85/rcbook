@@ -15,10 +15,16 @@
     "configuration": {
       "title": "RC Book",
       "properties": {
+        "rcbook.ai.provider": {
+          "type": "string",
+          "default": "openai",
+          "enum": ["openai", "anthropic", "custom"],
+          "description": "LLM Provider"
+        },
         "rcbook.ai.apiKey": {
           "type": "string",
           "default": "",
-          "description": "OpenAI API Key for AI service"
+          "description": "API Key for AI service"
         },
         "rcbook.ai.model": {
           "type": "string",
@@ -27,8 +33,27 @@
         },
         "rcbook.ai.baseUrl": {
           "type": "string",
-          "default": "https://api.openai.com/v1",
-          "description": "Base URL for OpenAI API (e.g. for proxies)"
+          "default": "",
+          "description": "Base URL for AI API (optional)"
+        },
+        "rcbook.ai.temperature": {
+          "type": "number",
+          "default": 0.7,
+          "description": "Temperature for model response"
+        },
+        "rcbook.mcp.servers": {
+            "type": "array",
+            "default": [],
+            "description": "List of MCP servers",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": { "type": "string" },
+                    "command": { "type": "string" },
+                    "args": { "type": "array", "items": { "type": "string" } },
+                    "env": { "type": "object" }
+                }
+            }
         }
       }
     },
@@ -66,7 +91,8 @@
     "pretest": "npm run compile && npm run compile-tests",
     "compile-tests": "tsc -p . --outDir out",
     "test": "jest --no-watchman",
-    "test:e2e": "node ./out/test/runTest.js"
+    "test:e2e": "node ./out/test/runTest.js",
+    "lint": "eslint src --ext ts,tsx"
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",

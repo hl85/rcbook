@@ -111,9 +111,9 @@ export class RcnbParser {
             const key = match[1];
             const value = match[2];
             
-            if (key === 'id') task.id = value;
-            if (key === 'status') task.status = value as any;
-            if (key === 'mode') task.mode = value as any;
+            if (key === 'id') { task.id = value; }
+            if (key === 'status') { task.status = value as any; }
+            if (key === 'mode') { task.mode = value as any; }
             
             // Remove comment from content (optional, but cleaner)
             // But wait, regex exec loop on same string while modifying it is dangerous.

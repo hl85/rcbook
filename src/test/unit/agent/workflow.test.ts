@@ -2,6 +2,8 @@ import { Orchestrator } from '../../../core/agent/Orchestrator';
 import { IAgent, ILLMProvider } from '../../../core/agent/interfaces';
 import { TaskCell, Message } from '../../../core/agent/types';
 
+// vscode mock provided by jest config moduleNameMapper
+
 // Simple Mock
 class MockProvider implements ILLMProvider {
     async generateResponse() { return 'done'; }

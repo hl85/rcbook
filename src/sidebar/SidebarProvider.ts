@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { TaskManager } from '../core/taskManager';
 import { RcnbFile } from '../core/types';
 import { RcnbParser } from '../core/parser';
@@ -32,14 +33,28 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         const apiKey = config.get<string>('apiKey');
         const model = config.get<string>('model') || 'gpt-3.5-turbo';
         const baseUrl = config.get<string>('baseUrl') || 'https://api.openai.com/v1';
+        const provider = config.get<string>('provider') || 'openai';
 
         if (apiKey) {
+            // TODO: Handle provider selection when more services are implemented
             this._aiService = new OpenAIService(apiKey, model, baseUrl);
-            console.log('RC Book: Switched to OpenAIService');
+            console.log(`RC Book: Switched to OpenAIService (${provider})`);
         } else {
             this._aiService = new MockAIService();
             console.log('RC Book: Using MockAIService');
         }
+    }
+
+    private _getConfig() {
+        const config = vscode.workspace.getConfiguration('rcbook');
+        return {
+            'rcbook.ai.provider': config.get('ai.provider'),
+            'rcbook.ai.apiKey': config.get('ai.apiKey'),
+            'rcbook.ai.model': config.get('ai.model'),
+            'rcbook.ai.baseUrl': config.get('ai.baseUrl'),
+            'rcbook.ai.temperature': config.get('ai.temperature'),
+            'rcbook.mcp.servers': config.get('mcp.servers'),
+        };
     }
 
     public resolveWebviewView(
@@ -48,6 +63,19 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         _token: vscode.CancellationToken,
     ) {
         this._view = webviewView;
+
+        // Listen for configuration changes
+        vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('rcbook')) {
+                this._initAIService();
+                if (this._view) {
+                    this._view.webview.postMessage({
+                        type: 'updateConfig',
+                        value: this._getConfig()
+                    });
+                }
+            }
+        });
 
         webviewView.webview.options = {
             // Allow scripts in the webview
@@ -61,6 +89,49 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
         webviewView.webview.onDidReceiveMessage(async data => {
             switch (data.type) {
+                case 'webviewReady': {
+                    // Send initial state and config
+                    this._updateFromFile();
+                    if (this._view) {
+                        this._view.webview.postMessage({
+                            type: 'updateConfig',
+                            value: this._getConfig()
+                        });
+                    }
+                    break;
+                }
+                case 'getConfig': {
+                    if (this._view) {
+                        this._view.webview.postMessage({
+                            type: 'updateConfig',
+                            value: this._getConfig()
+                        });
+                    }
+                    break;
+                }
+                case 'saveConfig': {
+                    const newConfig = data.value;
+                    const config = vscode.workspace.getConfiguration();
+                    
+                    // Update settings in global or workspace scope
+                    // We'll try to update workspace if available, else global
+                    const target = vscode.ConfigurationTarget.Global;
+
+                    for (const key of Object.keys(newConfig)) {
+                        // Extract section and key (e.g. rcbook.ai.apiKey -> section: rcbook.ai, key: apiKey)
+                        // Actually getConfiguration can take the section 'rcbook' or root
+                        // Since keys are full paths like 'rcbook.ai.apiKey', we should use update on the root config object?
+                        // No, getConfiguration('rcbook') returns the object under rcbook.
+                        // But here we have full keys.
+                        
+                        // Let's use getConfiguration() (root) and update full key
+                        await config.update(key, newConfig[key], target);
+                    }
+                    
+                    vscode.window.showInformationMessage('RC Book settings saved.');
+                    this._initAIService();
+                    break;
+                }
                 case 'onInfo': {
                     if (!data.value) {
                         return;
@@ -76,16 +147,23 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     break;
                 }
                 case 'createTask': {
-                    const task = this._taskManager.createTask(data.value.title);
-                    task.content = data.value.content;
-                    this._updateWebview();
-                    await this._saveToFile();
+                    const editor = vscode.window.activeTextEditor;
+                    if (!editor || !editor.document.fileName.endsWith('.rcnb')) {
+                        // 如果没有活跃的 .rcnb 文件，尝试自动创建一个
+                        await this._createAndOpenNewRcnbFile(data.value.title, data.value.content);
+                    } else {
+                        // 正常流程
+                        const task = this._taskManager.createTask(data.value.title);
+                        task.content = data.value.content;
+                        this._updateWebview();
+                        await this._saveToFile();
+                    }
                     break;
                 }
                 case 'askAI': {
                     const { taskId, prompt } = data.value;
                     const task = this._taskManager.getTask(taskId);
-                    if (!task) return;
+                    if (!task) { return; }
 
                     // Add user message
                     this._taskManager.addMessage(taskId, {
@@ -124,7 +202,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 case 'openDiff': {
                     const { taskId } = data.value;
                     const task = this._taskManager.getTask(taskId);
-                    if (!task) return;
+                    if (!task) { return; }
 
                     // Create a virtual document for the task content
                     // For a real diff, we usually compare "Previous" vs "Current" or "Current" vs "Proposed".
@@ -170,7 +248,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 case 'applyCode': {
                     const { taskId, code } = data.value;
                     const task = this._taskManager.getTask(taskId);
-                    if (!task) return;
+                    if (!task) { return; }
 
                     // Update task content with new code
                     task.content = code;
@@ -179,10 +257,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     // Save to file
                     await this._saveToFile(taskId);
                     vscode.window.showInformationMessage('Code applied successfully!');
-                    break;
-                }
-                case 'webviewReady': {
-                    this._updateFromFile();
                     break;
                 }
             }
@@ -207,7 +281,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         }
 
         const text = editor.document.getText();
-        if (!text.trim()) return; // Don't parse empty file yet
+        if (!text.trim()) { return; } // Don't parse empty file yet
 
         try {
             const file = this._parser.parse(text);
@@ -224,6 +298,76 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         } catch (e) {
             console.error('Failed to parse .rcnb file', e);
         }
+    }
+
+    private async _createAndOpenNewRcnbFile(taskTitle: string, taskContent: string) {
+        // 1. 确定文件名
+        let fileName = 'notebook.rcnb';
+        if (taskTitle) {
+            // 简单的 sanitize：只保留字母数字和横杠，空格转横杠
+            const sanitized = taskTitle.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+            if (sanitized) {
+                fileName = `${sanitized}.rcnb`;
+            }
+        }
+
+        // 2. 确定保存路径
+        let workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        let uri: vscode.Uri;
+
+        if (workspaceFolder) {
+            // 检查文件是否存在，避免覆盖
+            let counter = 0;
+            let baseName = fileName.replace('.rcnb', '');
+            while (true) {
+                const tryName = counter === 0 ? fileName : `${baseName}-${counter}.rcnb`;
+                uri = vscode.Uri.joinPath(workspaceFolder.uri, tryName);
+                try {
+                    await vscode.workspace.fs.stat(uri);
+                    counter++;
+                } catch {
+                    // 文件不存在，可以使用
+                    break;
+                }
+            }
+        } else {
+            // 没有打开文件夹，提示用户打开
+            const selection = await vscode.window.showErrorMessage(
+                'Please open a folder (workspace) first to create a notebook.',
+                'Open Folder'
+            );
+            
+            if (selection === 'Open Folder') {
+                vscode.commands.executeCommand('vscode.openFolder');
+            }
+            return;
+        }
+
+        // 3. 创建初始内容
+        // 我们创建一个临时的 TaskManager 来生成初始结构
+        const tempRcnb: RcnbFile = {
+            metadata: {
+                id: require('uuid').v4(), // 假设 uuid 库可用，或者暂时用随机字符串
+                title: taskTitle || 'New Notebook',
+                created_at: Date.now()
+            },
+            tasks: []
+        };
+        const tempManager = new TaskManager(tempRcnb);
+        const task = tempManager.createTask(taskTitle);
+        task.content = taskContent;
+
+        const fileContent = this._parser.serialize(tempRcnb);
+
+        // 4. 写入文件
+        await vscode.workspace.fs.writeFile(uri, Buffer.from(fileContent, 'utf-8'));
+
+        // 5. 打开文件
+        const doc = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc);
+
+        // 6. 此时 activeTextEditor 应该是新文件，触发 _updateFromFile，Webview 会自动更新
+        vscode.window.showInformationMessage(`Created new notebook: ${path.basename(uri.fsPath)}`);
     }
 
     private async _saveToFile(taskIdToSaveHistory?: string) {
@@ -266,12 +410,31 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 <title>RC Book</title>
             </head>
             <body>
-                <div id="root"></div>
+                <div id="root">
+                    <div style="padding: 20px; text-align: center;">
+                        Loading RC Book...
+                        <br/><br/>
+                        <small style="color: grey;">If this persists, please check Developer Tools for errors.</small>
+                    </div>
+                </div>
                 <script nonce="${nonce}">
                     const vscode = acquireVsCodeApi();
                     window.vscode = vscode;
+                    console.log('RC Book: Webview script initialized');
                 </script>
                 <script nonce="${nonce}" src="${scriptUri}"></script>
+                <script nonce="${nonce}">
+                    window.onerror = function(message, source, lineno, colno, error) {
+                        console.error('RC Book Webview Error:', message, source, lineno, colno, error);
+                        // Optional: post message back to extension
+                        if (window.vscode) {
+                            window.vscode.postMessage({
+                                type: 'onError',
+                                value: 'Webview JS Error: ' + message
+                            });
+                        }
+                    };
+                </script>
             </body>
             </html>`;
     }
