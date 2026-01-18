@@ -98,12 +98,12 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./ && npm run compile-web",
+    "vscode:prepublish": "pnpm run compile",
+    "compile": "tsc -p ./ && pnpm run compile-web",
     "compile-web": "webpack --mode production",
     "watch": "tsc -watch -p ./",
     "watch-web": "webpack --mode development --watch",
-    "pretest": "npm run compile && npm run compile-tests",
+    "pretest": "pnpm run compile && pnpm run compile-tests",
     "compile-tests": "tsc -p . --outDir out",
     "test": "jest --no-watchman",
     "test:e2e": "node ./out/test/runTest.js",

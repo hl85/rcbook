@@ -61,7 +61,7 @@ export class GeminiProvider implements ILLMProvider {
                     res.on('data', chunk => errorBody += chunk);
                     res.on('end', () => {
                          const errorMsg = `Gemini API Error: ${res.statusCode} - ${errorBody}`;
-                         if (callbacks) callbacks.onError(new Error(errorMsg));
+                         if (callbacks) {callbacks.onError(new Error(errorMsg));}
                          reject(new Error(errorMsg));
                     });
                     return;
@@ -123,7 +123,7 @@ export class GeminiProvider implements ILLMProvider {
                             text = JSON.parse(`"${text}"`);
                             fullText += text;
                             callbacks.onToken(text);
-                        } catch (e) {
+                        } catch (_e) {
                             // ignore
                         }
                     }
@@ -148,7 +148,7 @@ export class GeminiProvider implements ILLMProvider {
             });
 
             req.on('error', (e) => {
-                if (callbacks) callbacks.onError(e);
+                if (callbacks) {callbacks.onError(e);}
                 reject(e);
             });
 

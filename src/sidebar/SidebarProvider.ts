@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { TaskManager } from '../core/taskManager';
-import { RcnbFile, Task } from '../core/types';
+import { RcnbFile } from '../core/types';
 import { RcnbParser } from '../core/parser';
 import { HistoryService } from '../core/historyService';
 import { BaseAgent } from '../core/agent/BaseAgent';
@@ -49,10 +49,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             const profile = registry.getProfile(role as any);
             if (profile) {
                 const newConfig = { ...profile.defaultModel };
-                if (provider) newConfig.provider = provider as any;
-                if (model) newConfig.model = model;
-                if (apiKey) newConfig.apiKey = apiKey;
-                if (baseUrl) newConfig.baseUrl = baseUrl;
+                if (provider) {newConfig.provider = provider as any;}
+                if (model) {newConfig.model = model;}
+                if (apiKey) {newConfig.apiKey = apiKey;}
+                if (baseUrl) {newConfig.baseUrl = baseUrl;}
                 
                 registry.updateModelConfig(role as any, newConfig);
             }
@@ -61,7 +61,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
-        context: vscode.WebviewViewResolveContext,
+        _context: vscode.WebviewViewResolveContext,
         _token: vscode.CancellationToken,
     ) {
         this._view = webviewView;
@@ -78,12 +78,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         webviewView.webview.onDidReceiveMessage(async data => {
             switch (data.type) {
                 case 'onInfo': {
-                    if (!data.value) return;
+                    if (!data.value) {return;}
                     vscode.window.showInformationMessage(data.value);
                     break;
                 }
                 case 'onError': {
-                    if (!data.value) return;
+                    if (!data.value) {return;}
                     vscode.window.showErrorMessage(data.value);
                     break;
                 }
@@ -107,7 +107,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 case 'askAI': {
                     const { taskId, prompt } = data.value;
                     const task = this._taskManager.getTask(taskId);
-                    if (!task) return;
+                    if (!task) {return;}
 
                     // Add user message
                     this._taskManager.addMessage(taskId, {
@@ -119,8 +119,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
                     // Determine Agent Role
                     let role: AgentRole = 'coder';
-                    if (task.mode === 'architect') role = 'architect';
-                    if (task.mode === 'debug') role = 'reviewer';
+                    if (task.mode === 'architect') {role = 'architect';}
+                    if (task.mode === 'debug') {role = 'reviewer';}
 
                     const profile = ModelRegistry.getInstance().getProfile(role);
                     if (!profile) {
@@ -131,10 +131,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     try {
                         const agent = new BaseAgent(profile);
                         
-                        let aiResponse = '';
                         await agent.stream(task.messages || [], {
                             onToken: (token) => {
-                                aiResponse += token;
                                 this._view?.webview.postMessage({
                                     type: 'onAIStream',
                                     value: { taskId, token }
@@ -166,7 +164,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 case 'openDiff': {
                     const { taskId } = data.value;
                     const task = this._taskManager.getTask(taskId);
-                    if (!task) return;
+                    if (!task) {return;}
 
                     let proposedCode = '';
                     const lastAiMsg = task.messages?.filter(m => m.role === 'assistant').pop();
@@ -197,7 +195,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 case 'applyCode': {
                     const { taskId, code } = data.value;
                     const task = this._taskManager.getTask(taskId);
-                    if (!task) return;
+                    if (!task) {return;}
 
                     task.content = code;
                     this._updateWebview();
@@ -231,7 +229,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         }
 
         const text = editor.document.getText();
-        if (!text.trim()) return;
+        if (!text.trim()) {return;}
 
         try {
             const file = this._parser.parse(text);

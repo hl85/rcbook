@@ -45,7 +45,7 @@ export class OpenAICompatibleProvider implements ILLMProvider {
             }
         }
         // Ensure no trailing slash for consistent appending
-        if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+        if (baseUrl.endsWith('/')) {baseUrl = baseUrl.slice(0, -1);}
 
         const apiKey = modelConfig.apiKey;
         if (!apiKey) {
@@ -56,7 +56,7 @@ export class OpenAICompatibleProvider implements ILLMProvider {
             let requestUrl: URL;
             try {
                 requestUrl = new URL(`${baseUrl}/chat/completions`);
-            } catch (e) {
+            } catch (_e) {
                 reject(new Error(`Invalid Base URL: ${baseUrl}`));
                 return;
             }
@@ -78,7 +78,7 @@ export class OpenAICompatibleProvider implements ILLMProvider {
                     res.on('data', chunk => errorBody += chunk);
                     res.on('end', () => {
                          const errorMsg = `API Error: ${res.statusCode} - ${errorBody}`;
-                         if (callbacks) callbacks.onError(new Error(errorMsg));
+                         if (callbacks) {callbacks.onError(new Error(errorMsg));}
                          reject(new Error(errorMsg));
                     });
                     return;
@@ -93,7 +93,7 @@ export class OpenAICompatibleProvider implements ILLMProvider {
                     const lines = chunk.toString().split('\n').filter((line: string) => line.trim() !== '');
                     for (const line of lines) {
                         const message = line.replace(/^data: /, '');
-                        if (message === '[DONE]') continue;
+                        if (message === '[DONE]') {continue;}
                         try {
                             const parsed = JSON.parse(message);
                             const token = parsed.choices[0]?.delta?.content;
@@ -101,7 +101,7 @@ export class OpenAICompatibleProvider implements ILLMProvider {
                                 fullText += token;
                                 callbacks.onToken(token);
                             }
-                        } catch (e) {
+                        } catch (_e) {
                             // ignore partial JSON
                         }
                     }
@@ -124,7 +124,7 @@ export class OpenAICompatibleProvider implements ILLMProvider {
             });
 
             req.on('error', (e) => {
-                if (callbacks) callbacks.onError(e);
+                if (callbacks) {callbacks.onError(e);}
                 reject(e);
             });
 

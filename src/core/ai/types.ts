@@ -1,4 +1,4 @@
-import { Message, ModelConfig, Tool } from '../agent/types';
+import { Message, ModelConfig } from '../agent/types';
 
 export interface AIStreamCallbacks {
     onToken: (token: string) => void;
