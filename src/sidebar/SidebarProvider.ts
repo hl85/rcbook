@@ -205,6 +205,35 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 }
                 case 'webviewReady': {
                     this._updateFromFile();
+                    // Send current config to webview
+                    const config = vscode.workspace.getConfiguration('rcbook.ai');
+                    this._view?.webview.postMessage({
+                        type: 'config',
+                        value: {
+                            'rcbook.ai.provider': config.get('provider'),
+                            'rcbook.ai.apiKey': config.get('apiKey'),
+                            'rcbook.ai.model': config.get('model'),
+                            'rcbook.ai.baseUrl': config.get('baseUrl'),
+                            'rcbook.ai.temperature': config.get('temperature')
+                        }
+                    });
+                    break;
+                }
+                case 'saveConfig': {
+                    const config = data.value;
+                    const target = vscode.ConfigurationTarget.Global;
+                    const wsConfig = vscode.workspace.getConfiguration('rcbook.ai');
+                    
+                    await Promise.all([
+                        wsConfig.update('provider', config['rcbook.ai.provider'], target),
+                        wsConfig.update('apiKey', config['rcbook.ai.apiKey'], target),
+                        wsConfig.update('model', config['rcbook.ai.model'], target),
+                        wsConfig.update('baseUrl', config['rcbook.ai.baseUrl'], target),
+                        wsConfig.update('temperature', config['rcbook.ai.temperature'], target)
+                    ]);
+                    
+                    vscode.window.showInformationMessage('Settings saved successfully!');
+                    this._initAIService();
                     break;
                 }
             }

@@ -8,6 +8,39 @@ interface SettingsModalProps {
     onSave: (config: any) => void;
 }
 
+const PROVIDERS = [
+    { value: 'openai', label: 'OpenAI' },
+    { value: 'anthropic', label: 'Anthropic' },
+    { value: 'gemini', label: 'Gemini' },
+    { value: 'deepseek', label: 'DeepSeek' },
+    { value: 'qwencode', label: 'Qwen Code' },
+    { value: 'glm', label: 'GLM' },
+    { value: 'kimi', label: 'Kimi' },
+    { value: 'openrouter', label: 'OpenRouter' },
+    { value: 'local', label: 'Local Model (e.g. Ollama)' },
+    { value: 'custom', label: 'Custom' }
+];
+
+const getProviderUrl = (provider: string) => {
+    switch (provider) {
+        case 'openai': return 'https://platform.openai.com/api-keys';
+        case 'anthropic': return 'https://console.anthropic.com/settings/keys';
+        case 'gemini': return 'https://makersuite.google.com/app/apikey';
+        case 'deepseek': return 'https://platform.deepseek.com/api_keys';
+        case 'openrouter': return 'https://openrouter.ai/keys';
+        default: return null;
+    }
+};
+
+const getProviderPlaceholder = (provider: string) => {
+     switch (provider) {
+        case 'openai': return 'sk-...';
+        case 'anthropic': return 'sk-ant-...';
+        case 'gemini': return 'AIza...';
+        default: return 'API Key';
+    }
+};
+
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, initialConfig, onSave }) => {
     const [config, setConfig] = useState(initialConfig);
     const [activeTab, setActiveTab] = useState('llm');
@@ -26,15 +59,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
     };
 
     const handleChange = (key: string, value: any) => {
-        const keys = key.split('.');
-        if (keys.length === 1) {
-            setConfig({ ...config, [key]: value });
-        } else if (keys.length === 2) {
-             // Handle simple nested object update if needed, but flattened keys are easier for now
-             // Assuming config structure matches package.json properties structure (flattened)
-             setConfig({ ...config, [key]: value });
-        }
+        // Flattened keys are used in config state
+        setConfig({ ...config, [key]: value });
     };
+
+    const currentProvider = config['rcbook.ai.provider'] || 'openai';
+    const isConfigured = !!config['rcbook.ai.apiKey'] || currentProvider === 'local';
 
     // Helper for input styles
     const inputStyle = {
@@ -99,18 +129,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
                 <div style={{ padding: '16px', overflowY: 'auto', flex: 1 }}>
                     {activeTab === 'llm' && (
                         <div>
+                            {!isConfigured && (
+                                <div style={{ 
+                                    marginBottom: '20px', 
+                                    padding: '12px', 
+                                    background: 'var(--vscode-editor-inactiveSelectionBackground)', 
+                                    borderRadius: '4px',
+                                    borderLeft: '4px solid var(--vscode-textLink-foreground)'
+                                }}>
+                                    <h4 style={{ margin: '0 0 8px 0' }}>Configure LLM Provider</h4>
+                                    <p style={{ margin: 0, fontSize: '13px' }}>
+                                        RC Book needs an LLM provider to work. Choose one to start using, you can add more later.
+                                    </p>
+                                </div>
+                            )}
+
                             <label style={labelStyle}>Provider</label>
                             <select 
                                 style={inputStyle}
-                                value={config['rcbook.ai.provider'] || 'openai'}
+                                value={currentProvider}
                                 onChange={(e) => handleChange('rcbook.ai.provider', e.target.value)}
                             >
-                                <option value="openai">OpenAI</option>
-                                <option value="anthropic">Anthropic</option>
-                                <option value="custom">Custom</option>
+                                {PROVIDERS.map(p => (
+                                    <option key={p.value} value={p.value}>{p.label}</option>
+                                ))}
                             </select>
+                            
+                            {!isConfigured && getProviderUrl(currentProvider) && (
+                                <div style={{ marginBottom: '10px' }}>
+                                    <a href={getProviderUrl(currentProvider)!} target="_blank" rel="noreferrer" style={{ color: 'var(--vscode-textLink-foreground)', fontSize: '12px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+                                        <span style={{ marginRight: '4px' }}>Get {PROVIDERS.find(p => p.value === currentProvider)?.label} API Key</span>
+                                        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                                            <path d="M8.6 3.2l4.2 4.2-4.2 4.2-1.4-1.4 1.8-1.8H3v-2h6L7.2 4.6l1.4-1.4z"/>
+                                        </svg>
+                                    </a>
+                                </div>
+                            )}
 
-                            <label style={labelStyle}>Base URL</label>
+                            <label style={labelStyle}>Base URL (Optional)</label>
                             <input 
                                 style={inputStyle}
                                 type="text" 
@@ -121,12 +177,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
 
                             <label style={labelStyle}>API Key</label>
                             <input 
-                                style={inputStyle}
+                                style={{
+                                    ...inputStyle, 
+                                    borderColor: !config['rcbook.ai.apiKey'] && currentProvider !== 'local' ? 'var(--vscode-inputValidation-errorBorder)' : 'var(--vscode-input-border)'
+                                }}
                                 type="password" 
                                 value={config['rcbook.ai.apiKey'] || ''}
                                 onChange={(e) => handleChange('rcbook.ai.apiKey', e.target.value)}
-                                placeholder="sk-..."
+                                placeholder={getProviderPlaceholder(currentProvider)}
                             />
+                            {!config['rcbook.ai.apiKey'] && currentProvider !== 'local' && (
+                                <div style={{ color: 'var(--vscode-inputValidation-errorForeground)', fontSize: '11px', marginTop: '-8px', marginBottom: '10px' }}>
+                                    You must provide a valid API key.
+                                </div>
+                            )}
 
                             <label style={labelStyle}>Model Name</label>
                             <input 
@@ -164,8 +228,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, i
                                         const parsed = JSON.parse(e.target.value);
                                         handleChange('rcbook.mcp.servers', parsed);
                                     } catch (_err) {
-                                        // Allow typing invalid JSON temporarily? 
-                                        // For simplicity in this v1, maybe just warn or rely on final save
+                                        // Allow typing invalid JSON temporarily
                                     }
                                 }}
                             />

@@ -28,6 +28,13 @@ export default function App() {
                         setConfig(message.value.config);
                     }
                     break;
+                case 'config':
+                    setConfig(message.value);
+                    // If no API key is set (and not local), open settings to guide user
+                    if (!message.value['rcbook.ai.apiKey'] && message.value['rcbook.ai.provider'] !== 'local') {
+                        setIsSettingsOpen(true);
+                    }
+                    break;
                 case 'updateConfig':
                     setConfig(message.value);
                     break;

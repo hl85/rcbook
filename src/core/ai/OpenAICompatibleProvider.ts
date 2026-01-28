@@ -1,4 +1,5 @@
 import * as https from 'https';
+import * as http from 'http';
 import { URL } from 'url';
 import { ILLMProvider, AIStreamCallbacks } from './types';
 import { Message, ModelConfig, Tool } from '../agent/types';
@@ -38,6 +39,18 @@ export class OpenAICompatibleProvider implements ILLMProvider {
                 case 'kimi':
                     baseUrl = 'https://api.moonshot.cn/v1';
                     break;
+                case 'qwencode':
+                    baseUrl = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+                    break;
+                case 'glm':
+                    baseUrl = 'https://open.bigmodel.cn/api/paas/v4';
+                    break;
+                case 'openrouter':
+                    baseUrl = 'https://openrouter.ai/api/v1';
+                    break;
+                case 'local':
+                    baseUrl = 'http://localhost:11434/v1';
+                    break;
                 case 'openai':
                 default:
                     baseUrl = 'https://api.openai.com/v1';
@@ -48,7 +61,7 @@ export class OpenAICompatibleProvider implements ILLMProvider {
         if (baseUrl.endsWith('/')) {baseUrl = baseUrl.slice(0, -1);}
 
         const apiKey = modelConfig.apiKey;
-        if (!apiKey) {
+        if (!apiKey && modelConfig.provider !== 'local') {
             throw new Error(`API Key is missing for provider ${modelConfig.provider}`);
         }
 
@@ -65,14 +78,16 @@ export class OpenAICompatibleProvider implements ILLMProvider {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
+                    'Authorization': `Bearer ${apiKey || 'dummy'}` // Some local servers need auth header presence
                 }
             };
 
             let fullText = '';
             let rawResponse = ''; // For non-stream debugging
 
-            const req = https.request(requestUrl, options, (res) => {
+            const client = requestUrl.protocol === 'http:' ? http : https;
+
+            const req = client.request(requestUrl, options, (res) => {
                 if (res.statusCode !== 200) {
                     let errorBody = '';
                     res.on('data', chunk => errorBody += chunk);

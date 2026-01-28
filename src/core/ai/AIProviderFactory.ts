@@ -32,7 +32,8 @@ export class AIProviderFactory {
 
         // Map config.provider to provider implementation
         
-        if (['openai', 'deepseek', 'kimi'].includes(config.provider)) {
+        // Native OpenAI Compatible providers
+        if (['openai', 'deepseek', 'kimi', 'qwencode', 'glm', 'openrouter', 'local', 'custom'].includes(config.provider)) {
              return this.providers.get('openai-compatible')!;
         }
         

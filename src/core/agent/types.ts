@@ -48,7 +48,7 @@ export interface Tool {
 }
 
 export interface ModelConfig {
-    provider: 'openai' | 'anthropic' | 'ollama' | 'gemini' | 'deepseek' | 'kimi';
+    provider: 'openai' | 'anthropic' | 'ollama' | 'gemini' | 'deepseek' | 'kimi' | 'qwencode' | 'glm' | 'openrouter' | 'local' | 'custom';
     model: string;
     temperature?: number;
     apiKey?: string; // Optional override
@@ -74,7 +74,7 @@ export interface Message {
 // --- Zod Schemas (for validation) ---
 
 export const ModelConfigSchema = z.object({
-    provider: z.enum(['openai', 'anthropic', 'ollama']),
+    provider: z.enum(['openai', 'anthropic', 'ollama', 'gemini', 'deepseek', 'kimi', 'qwencode', 'glm', 'openrouter', 'local', 'custom']),
     model: z.string(),
     temperature: z.number().optional(),
 });

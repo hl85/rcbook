@@ -21,6 +21,13 @@
           "enum": [
             "openai",
             "anthropic",
+            "gemini",
+            "deepseek",
+            "qwencode",
+            "glm",
+            "kimi",
+            "openrouter",
+            "local",
             "custom"
           ],
           "description": "LLM Provider"
